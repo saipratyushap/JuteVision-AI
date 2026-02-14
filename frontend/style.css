@@ -1,16 +1,14 @@
 :root {
     --bg-dark: #f0fdf4;
-    /* Very light green/white tint */
     --bg-card: #ffffff;
-    --text-primary: #1b4d3e;
-    /* Dark Green/Slate for text */
+    --text-primary: #1E293B;
     --text-secondary: #64748b;
-    --accent-green: #2e7d32;
-    /* Thirdeye Green */
+    --accent-green: #497A21;
+    /* Updated to Match Screenshot Green */
     --accent-light: #4ade80;
-    /* Lighter green for highlights */
     --accent-gold: #fbbf24;
-    /* Keep gold for accents */
+    --accent-cyan: #16B8E3;
+    /* ThirdEye Cyan */
     --border-color: #e2e8f0;
     --danger: #ef4444;
     --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -25,10 +23,16 @@
 }
 
 body {
-    background-color: var(--bg-dark);
+    background-color: white;
     color: var(--text-primary);
     font-family: var(--font-main);
-    overflow: hidden;
+    overflow-x: hidden;
+}
+
+.grid-bg {
+    background-size: 40px 40px;
+    background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px),
+        linear-gradient(to bottom, #f1f5f9 1px, transparent 1px);
 }
 
 /* Custom Scrollbar */
@@ -1183,14 +1187,11 @@ input:checked+.slider:before {
     display: flex;
     justify-content: flex-end;
     gap: 0.5rem;
-    opacity: 0;
-    /* Hidden by default */
     transition: opacity 0.2s;
 }
 
 .data-table tr:hover .action-cell {
     opacity: 1;
-    /* Show on hover */
 }
 
 .action-btn {
@@ -1212,4 +1213,137 @@ input:checked+.slider:before {
     border-color: var(--primary-color);
     color: var(--primary-color);
     transform: translateY(-1px);
+}
+
+/* --- Modern Footer Styles --- */
+.landing-footer {
+    background-color: #f8fafc;
+    border-top: 1px solid var(--border-color);
+    padding: 6rem 4rem 3rem;
+    margin-top: 4rem;
+}
+
+.footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    gap: 4rem;
+    margin-bottom: 4rem;
+}
+
+.footer-column h5 {
+    color: var(--accent-green);
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.footer-column p {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+.footer-links {
+    list-style: none;
+    padding: 0;
+}
+
+.footer-links li {
+    margin-bottom: 0.75rem;
+}
+
+.footer-links a {
+    color: #64748b;
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.footer-links a:hover {
+    color: var(--accent-green);
+    padding-left: 4px;
+}
+
+.social-links {
+    display: flex;
+    gap: 1rem;
+}
+
+.social-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+}
+
+.social-icon:hover {
+    background: var(--accent-green);
+    color: white;
+    border-color: var(--accent-green);
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(73, 122, 33, 0.2);
+}
+
+.footer-bottom {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #94a3b8;
+    font-size: 0.85rem;
+}
+
+.footer-policy-links {
+    display: flex;
+    gap: 2rem;
+}
+
+.footer-policy-links a {
+    color: #94a3b8;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.footer-policy-links a:hover {
+    color: var(--accent-green);
+}
+
+@media (max-width: 1024px) {
+    .footer-container {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 3rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .landing-footer {
+        padding: 4rem 2rem 2rem;
+    }
+
+    .footer-container {
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        gap: 1.5rem;
+        text-align: center;
+    }
 }

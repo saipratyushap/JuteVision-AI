@@ -4,265 +4,355 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CCTV VisionCount AI | Jute Bag Counter</title>
+    <title>CCTV VisionCount AI | Precision Bag Counting & Warehouse Automation</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="shortcut icon" href="thirdeye-fav.jpg" type="image/x-icon">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap"
-        rel="stylesheet">
-</head>
-
-<body>
-    <div class="app-container">
-        <!-- New Top Header -->
-        <header class="site-header">
-            <div class="header-left">
-                <img src="assets/thirdeye-logo.png" alt="ThirdEye Data" class="header-logo">
-                <div class="divider-vertical" style="margin-top: 10px;"></div>
-                <h1 class="header-title" style="margin-top: 10px; color: black;">CCTV VisionCount AI</h1>
-            </div>
-
-            <nav class="header-nav">
-                <a href="index.html" class="nav-item active" id="nav-dashboard">Dashboard</a>
-                <a href="analytics.html" class="nav-item" id="nav-analytics">Analytics</a>
-            </nav>
-
-            <div class="header-right">
-                <div class="system-status">
-                    <div class="status-indicator online"></div>
-                    <span>System Online</span>
-                </div>
-                <button class="btn-logout" id="nav-logout" title="Logout">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                </button>
-            </div>
-        </header>
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <header class="page-header">
-                <h2 style="color:#497A21">Real-Time Monitoring</h2>
-                <div class="actions">
-                    <button class="btn-secondary" id="reset-btn" style="margin-right: 2px;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M23 4v6h-6"></path>
-                            <path d="M1 20v-6h6"></path>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                        Reset
-                    </button>
-                    <button class="btn-secondary">Export Data</button>
-                    <button class="btn-primary" id="upload-btn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                            <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                            <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                        </svg>
-                        Uploads
-                    </button>
-                </div>
-            </header>
-
-            <div class="dashboard-grid">
-                <!-- Live Stream Feed (MJPEG) -->
-                <div class="card video-feed-card">
-                    <div class="card-header">
-                        <h3>Live Feed 01</h3>
-                        <span class="live-badge">LIVE</span>
-                    </div>
-                    <div class="video-container">
-                        <!-- MJPEG Stream Source - Default Empty -->
-                        <img src="" alt="Live Camera Feed" class="live-stream-img" id="camera-feed"
-                            style="display: none;">
-                        <div class="camera-placeholder" id="camera-placeholder">
-                            <p>Camera is Disable</p>
-                        </div>
-                        <div class="overlay-ui">
-                            <div class="zone-line"></div>
-                        </div>
-                    </div>
-
-                    <!-- Camera Toggle Control -->
-                    <div class="camera-controls">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="camera-toggle">
-                            <span class="slider round"></span>
-                        </label>
-                        <span class="toggle-label">Enable Camera</span>
-                    </div>
-                </div>
-
-                <!-- Stats Panel -->
-                <div class="stats-column">
-                    <div class="card stat-card total-count">
-                        <h3 style="color:#497A21">Total Bags</h3>
-                        <div class="stat-value" id="current-count">0</div>
-                        <div class="stat-trend positive">+12% vs last hour</div>
-                    </div>
-
-                    <div class="card upload-status-card" style="margin-top: 20px;">
-                        <h3 style="color:#497A21">Upload Status</h3>
-                        <div class="upload-list" id="upload-list">
-                            <div class="empty-state">No active uploads</div>
-                            <!-- Upload items will be injected here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-
-            <!-- Upload Modal (Hidden by default) -->
-            <div class="modal-backdrop" id="upload-modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>Upload Video for Analysis</h3>
-                        <button class="close-btn" id="close-modal">&times;</button>
-                    </div>
-
-                    <!-- Mode Selection -->
-                    <div class="mode-selection" style="margin-bottom: 2rem;">
-                        <label
-                            style="display: block; margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;">Select
-                            Analysis Mode:</label>
-                        <div class="radio-group" style="display: flex; flex-direction: column; gap: 1rem;">
-
-                            <!-- Static Mode -->
-                            <label class="radio-card">
-                                <input type="radio" name="analysis-mode" value="static" checked>
-                                <div class="card-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                                    </svg>
-                                </div>
-                                <div class="card-text">
-                                    <strong>Static Mode</strong>
-                                    <span>For Piles & Warehouses (Images)</span>
-                                </div>
-                            </label>
-
-                            <!-- Scanning Mode -->
-                            <label class="radio-card">
-                                <input type="radio" name="analysis-mode" value="scanning">
-                                <div class="card-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                                        <line x1="8" y1="21" x2="16" y2="21"></line>
-                                        <line x1="12" y1="17" x2="12" y2="21"></line>
-                                    </svg>
-                                </div>
-                                <div class="card-text">
-                                    <strong>Scanning Mode</strong>
-                                    <span>For Conveyors & Panning (Videos)</span>
-                                </div>
-                            </label>
-
-                            <!-- Live Camera -->
-                            <label class="radio-card">
-                                <input type="radio" name="analysis-mode" value="live">
-                                <div class="card-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M23 7l-7 5 7 5V7z"></path>
-                                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                                    </svg>
-                                </div>
-                                <div class="card-text">
-                                    <strong>CCTV Live</strong>
-                                    <span>Real-time CCTV Feed</span>
-                                </div>
-                            </label>
-
-                        </div>
-                    </div>
-
-                    <div class="drop-zone" id="drop-zone">
-                        <div class="upload-icon">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.5">
-                                <path
-                                    d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" />
-                                <path d="M17 8L12 3L7 8" />
-                                <path d="M12 3V15" />
-                            </svg>
-                        </div>
-                        <p>Drag & Drop video here or <span>Browse</span></p>
-                        <input type="file" id="file-input" accept="video/mp4,video/avi" hidden>
-                    </div>
-
-                    <!-- Start Camera Button (Hidden by default) -->
-                    <div id="start-camera-container" style="display: none; text-align: center; padding: 20px;">
-                        <button id="start-camera-btn" class="btn-primary"
-                            style="width: 100%; justify-content: center; padding: 12px;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M23 7l-7 5 7 5V7z"></path>
-                                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                            </svg>
-                            Start CCTV Live
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-        </main>
-    </div>
-
-    <script type="module" src="script.js"></script>
-    <script>
-        // Toggle File Input Acceptance based on Mode
-        const modeRadios = document.querySelectorAll('input[name="analysis-mode"]');
-        const fileInput = document.getElementById('file-input');
-        const dropZoneText = document.querySelector('.drop-zone p');
-
-        function updateInputMode() {
-            const selectedMode = document.querySelector('input[name="analysis-mode"]:checked').value;
-            const dropZone = document.getElementById('drop-zone');
-            const startCameraContainer = document.getElementById('start-camera-container');
-
-            if (selectedMode === 'live') {
-                dropZone.style.display = 'none';
-                startCameraContainer.style.display = 'block';
-            } else {
-                dropZone.style.display = 'flex';
-                startCameraContainer.style.display = 'none';
-
-                if (selectedMode === 'static') {
-                    fileInput.accept = "image/jpeg,image/png,image/jpg";
-                    dropZoneText.innerHTML = "Drag & Drop <span>Image</span> here or <span>Browse</span>";
-                } else {
-                    fileInput.accept = "video/mp4,video/avi,video/mov";
-                    dropZoneText.innerHTML = "Drag & Drop <span>Video</span> here or <span>Browse</span>";
-                }
-            }
+    <link rel="shortcut icon" href="assets/thirdeye-fav.jpg" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Landing Page Specific Styles */
+        .landing-header {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1000;
+            padding: 1rem 4rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
         }
 
-        modeRadios.forEach(radio => radio.addEventListener('change', updateInputMode));
+        .landing-nav {
+            display: flex;
+            gap: 2rem;
+        }
 
-        // Start Camera Logic
-        document.getElementById('start-camera-btn').addEventListener('click', () => {
-            // Close Modal
-            document.getElementById('upload-modal').style.display = 'none';
-            // Enable Camera (trigger the toggle in script.js)
-            const cameraToggle = document.getElementById('camera-toggle');
-            if (cameraToggle && !cameraToggle.checked) {
-                cameraToggle.click();
-            }
-        });
+        .landing-nav a {
+            text-decoration: none;
+            color: #334155;
+            font-weight: 500;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
 
-        // Initialize on load
-        updateInputMode();
-    </script>
+        .landing-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn-ghost {
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
+            background: transparent;
+            padding: 0.6rem 1.2rem;
+            border-radius: 4px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .btn-cyan {
+            background-color: var(--accent-cyan);
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s;
+        }
+
+        .hero-section {
+            padding: 8rem 2rem;
+            text-align: center;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            color: var(--accent-green);
+            line-height: 1.2;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: #475569;
+            margin-bottom: 3rem;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .expertise-section {
+            padding: 4rem 2rem;
+            background: #f8fafc;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .expertise-card {
+            background: white;
+            padding: 3rem 2rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .expertise-card .btn-cyan {
+            margin-top: auto;
+        }
+
+        .expertise-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 2rem;
+        }
+
+        .case-studies {
+            padding: 4rem 2rem;
+        }
+
+        .cs-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .cs-card {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            background: white;
+        }
+
+        .cs-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .cs-content {
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .footer-cta {
+            background: #f1f8eb;
+            padding: 6rem 4rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+
+<body class="grid-bg">
+    <header class="landing-header">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <img src="assets/thirdeye-logo.png" alt="ThirdEye logo" style="height: 32px; display: block; width: auto;">
+            <div class="divider-vertical"
+                style="height: 20px; background-color: var(--border-color); width: 1px; margin: 0 4px;"></div>
+            <span
+                style="font-weight: 700; font-size: 1.1rem; color: var(--accent-green); white-space: nowrap; line-height: 1; display: flex; align-items: center; transform: translateY(4px);">CCTV
+                VisionCount AI</span>
+        </div>
+        <nav class="landing-nav">
+            <a href="#">Services</a>
+            <a href="#">Solutions</a>
+            <a href="#">Industries</a>
+            <a href="#">Case Studies</a>
+            <a href="#">Customers</a>
+        </nav>
+        <div class="landing-actions">
+            <a href="login.html" class="btn-ghost">Login</a>
+            <a href="register.html" class="btn-primary"
+                style="background:#497A21; padding: 0.6rem 1.5rem; border-radius: 4px;">Sign Up</a>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero-section">
+            <h1 class="hero-title">Precision Bag Counting & Warehouse Automation powered by Vision AI</h1>
+            <p class="hero-subtitle">High-accuracy object detection and tracking systems by <strong>CCTV VisionCount
+                    AI</strong>, designed for real-time inventory management and operational intelligence.</p>
+            <a href="dashboard.html" class="btn-cyan">Go to Dashboard &rarr;</a>
+        </section>
+
+        <section class="expertise-section">
+            <div class="section-header">
+                <h2>Primary Expertise | AI-Driven Counting Intelligence</h2>
+                <p style="max-width: 700px; margin: 1rem auto; color: #64748b;">We specialize in deploying robust
+                    computer vision systems that automate high-volume counting tasks in complex industrial environments.
+                </p>
+            </div>
+            <div class="card-grid">
+                <div class="expertise-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2103/2103633.png" class="expertise-icon"
+                        alt="Detection">
+                    <h3>Real-time Object Detection</h3>
+                    <p style="margin: 1.5rem 0; color: #475569;">Deploying state-of-the-art YOLO models to detect and
+                        localize jute bags, pallets, and stock items with 99%+ accuracy.</p>
+                </div>
+                <div class="expertise-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2103/2103665.png" class="expertise-icon"
+                        alt="Analytics">
+                    <h3>Automated Warehouse Analytics</h3>
+                    <p style="margin: 1.5rem 0; color: #475569;">Turning visual data into actionable stock reports,
+                        trend analysis, and historical inventory logs for better planning.</p>
+                </div>
+                <div class="expertise-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2103/2103607.png" class="expertise-icon"
+                        alt="Vision">
+                    <h3>High-Accuracy Counting Intelligence</h3>
+                    <p style="margin: 1.5rem 0; color: #475569;">Advanced tracking algorithms for conveyor belts and
+                        static piles, ensuring zero double-counts and total transparency.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="case-studies">
+            <div class="section-header">
+                <p
+                    style="color: var(--accent-green); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;">
+                    Operational Success Stories</p>
+                <h2 style="font-size: 2rem;">Solving Industrial Logistics Challenges with Vision AI</h2>
+            </div>
+            <div class="cs-grid">
+                <div class="cs-card">
+                    <img src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=400"
+                        class="cs-img">
+                    <div class="cs-content">
+                        <h4 style="margin-bottom: 0.5rem;">Large Scale Warehouse Jute Bag Counting & Inventory Audit
+                        </h4>
+                    </div>
+                </div>
+                <div class="cs-card">
+                    <img src="https://images.unsplash.com/photo-1544724569-5f546fd6f2b5?auto=format&fit=crop&q=80&w=400"
+                        class="cs-img">
+                    <div class="cs-content">
+                        <h4 style="margin-bottom: 0.5rem;">Conveyor Belt Processing Speed & Throughout Optimization</h4>
+                    </div>
+                </div>
+                <div class="cs-card">
+                    <img src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&q=80&w=400"
+                        class="cs-img">
+                    <div class="cs-content">
+                        <h4 style="margin-bottom: 0.5rem;">Automated Stock Reconciliation via Real-time Video Feeds</h4>
+                    </div>
+                </div>
+                <div class="cs-card">
+                    <img src="https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=400"
+                        class="cs-img">
+                    <div class="cs-content">
+                        <h4 style="margin-bottom: 0.5rem;">CCTV Intrusion Detection & Security Event Monitoring</h4>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="landing-footer">
+            <div class="footer-container">
+                <!-- Column 1: Branding -->
+                <div class="footer-column">
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+                        <img src="assets/thirdeye-logo.png" alt="ThirdEye logo"
+                            style="height: 24px; display: block; width: auto;">
+                        <div class="divider-vertical"
+                            style="height: 16px; background-color: var(--border-color); width: 1px; margin: 0 2px;">
+                        </div>
+                        <span
+                            style="font-weight: 700; color: var(--accent-green); font-size: 0.9rem; white-space: nowrap; line-height: 1; display: flex; align-items: center; transform: translateY(2px);">CCTV
+                            VisionCount AI</span>
+                    </div>
+                    <p>Empowering industrial logistics with high-precision Vision AI for automated counting, tracking,
+                        and operational intelligence.</p>
+                    <div class="social-links">
+                        <a href="#" class="social-icon">in</a>
+                        <a href="#" class="social-icon">f</a>
+                        <a href="#" class="social-icon">x</a>
+                    </div>
+                </div>
+
+                <!-- Column 2: Products -->
+                <div class="footer-column">
+                    <h5>Products & AI</h5>
+                    <ul class="footer-links">
+                        <li><a href="#">Real-time Counting</a></li>
+                        <li><a href="#">Warehouse Analytics</a></li>
+                        <li><a href="#">YOLO-Powered Detection</a></li>
+                        <li><a href="#">CCTV Integration</a></li>
+                    </ul>
+                </div>
+
+                <!-- Column 3: Resources -->
+                <div class="footer-column">
+                    <h5>Resources</h5>
+                    <ul class="footer-links">
+                        <li><a href="#">Technical Documentation</a></li>
+                        <li><a href="#">Case Study Archive</a></li>
+                        <li><a href="#">ThirdEye Decoded</a></li>
+                        <li><a href="#">Developer API</a></li>
+                    </ul>
+                </div>
+
+                <!-- Column 4: Company -->
+                <div class="footer-column">
+                    <h5>Company</h5>
+                    <ul class="footer-links">
+                        <li><a href="#">About ThirdEye Data</a></li>
+                        <li><a href="#">Success Stories</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Contact Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>© 2026 CCTV VisionCount AI. Developed for industrial excellence.</p>
+                <div class="footer-policy-links">
+                    <a href="#">Terms of Service</a>
+                    <a href="#">Cookie Policy</a>
+                    <a href="#">SLA Agreement</a>
+                </div>
+            </div>
+        </footer>
+
+        <script type="module">
+            import { requireNoAuth } from './auth.js';
+            // If user is already logged in, send them straight to the dashboard
+            requireNoAuth();
+        </script>
 </body>
 
 </html>

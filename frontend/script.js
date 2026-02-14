@@ -157,7 +157,7 @@ async function pollTaskStatus(taskId, element) {
                         <img src="${mediaUrl}" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                         <div class="result-actions" style="display: flex; gap: 10px; margin-top: 10px;">
                             <button class="btn-primary download-media-btn" data-url="${mediaUrl}" data-filename="detected_${fileName}.jpg" style="flex: 1; text-align: center; text-decoration: none; font-size: 0.9rem;">Download Image</button>
-                            <button class="btn-secondary view-analytics-btn" data-filename="${fileName}" style="flex: 1; font-size: 0.9rem;">View Analytics</button>
+                            <button class="btn-primary view-analytics-btn" data-filename="${fileName}" style="flex: 1; font-size: 0.9rem;">View Analytics</button>
                         </div>
                     `;
                 } else {
@@ -165,7 +165,7 @@ async function pollTaskStatus(taskId, element) {
                         <video controls src="${mediaUrl}" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);"></video>
                         <div class="result-actions" style="display: flex; gap: 10px; margin-top: 10px;">
                             <button class="btn-primary download-media-btn" data-url="${mediaUrl}" data-filename="detected_${fileName}.mp4" style="flex: 1; text-align: center; text-decoration: none; font-size: 0.9rem;">Download Video</button>
-                            <button class="btn-secondary view-analytics-btn" data-filename="${fileName}" style="flex: 1; font-size: 0.9rem;">View Analytics</button>
+                            <button class="btn-primary view-analytics-btn" data-filename="${fileName}" style="flex: 1; font-size: 0.9rem;">View Analytics</button>
                         </div>
                     `;
                 }
@@ -205,6 +205,15 @@ async function pollTaskStatus(taskId, element) {
 
                 // Add to Analytics Table
                 addAnalyticsRow(fileName, task.count, "Completed");
+
+                // Persist successful upload for dashboard view
+                saveRecentUpload({
+                    fileName,
+                    count: task.count,
+                    mediaUrl,
+                    isImage: task.is_image,
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                });
 
             } else if (task.status === 'failed') {
                 clearInterval(interval);
@@ -258,7 +267,11 @@ function addAnalyticsRow(filename, count, status) {
 
 // Camera Toggle Logic
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM Loaded - Initializing Camera Toggle");
+    console.log("DOM Loaded - Initializing Camera Toggle and Loading Results");
+
+    // Load persisted dashboard items
+    loadRecentUploads();
+
     const cameraToggle = document.getElementById('camera-toggle');
     const cameraFeed = document.getElementById('camera-feed');
     const cameraPlaceholder = document.getElementById('camera-placeholder');
@@ -458,18 +471,111 @@ function resetUI() {
 
     // Clear Analytics Table
     const tableBody = document.getElementById('analytics-table-body');
-    tableBody.innerHTML = `
-        <tr>
-            <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No recent activity</td>
-        </tr>
-    `;
+    if (tableBody) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No recent activity</td>
+            </tr>
+        `;
+    }
 
     // Reset Metrics
-    document.getElementById('metric-uploads').textContent = '0';
-    document.getElementById('metric-avg').textContent = '0';
-    document.getElementById('metric-success').textContent = '100%';
+    const metricUploads = document.getElementById('metric-uploads');
+    const metricAvg = document.getElementById('metric-avg');
+    const metricSuccess = document.getElementById('metric-success');
+
+    if (metricUploads) metricUploads.textContent = '0';
+    if (metricAvg) metricAvg.textContent = '0';
+    if (metricSuccess) metricSuccess.textContent = '100%';
 
     // Clear Upload List
     const uploadList = document.getElementById('upload-list');
-    uploadList.innerHTML = '<div class="empty-state">No active uploads</div>';
+    if (uploadList) {
+        uploadList.innerHTML = '<div class="empty-state">No active uploads</div>';
+    }
+
+    // Clear LocalStorage
+    localStorage.removeItem('analyticsData');
+    localStorage.removeItem('recentUploads');
+    localStorage.removeItem('currentTotalBags'); // Also clear count persistence if we add it
+}
+
+// Result Persistence Helpers
+function saveRecentUpload(item) {
+    let recent = JSON.parse(localStorage.getItem('recentUploads') || '[]');
+    recent.unshift(item);
+    if (recent.length > 5) recent = recent.slice(0, 5); // Keep only last 5 for dashboard
+    localStorage.setItem('recentUploads', JSON.stringify(recent));
+
+    // Also update current total bags persistence
+    const currentTotal = parseInt(localStorage.getItem('currentTotalBags') || '0');
+    localStorage.setItem('currentTotalBags', currentTotal + item.count);
+}
+
+function loadRecentUploads() {
+    const recent = JSON.parse(localStorage.getItem('recentUploads') || '[]');
+    const currentTotal = localStorage.getItem('currentTotalBags') || '0';
+
+    // Restore count
+    updateCount(parseInt(currentTotal));
+
+    if (recent.length > 0) {
+        const uploadList = document.getElementById('upload-list');
+        const emptyState = uploadList.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
+
+        recent.forEach(item => {
+            const uploadItem = document.createElement('div');
+            uploadItem.className = 'upload-item completed'; // It's already completed
+
+            const mediaHtml = item.isImage
+                ? `<img src="${item.mediaUrl}" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">`
+                : `<video controls src="${item.mediaUrl}" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);"></video>`;
+
+            uploadItem.innerHTML = `
+                <div class="file-info">
+                    <span class="file-name">${item.fileName}</span>
+                    <span class="status-text" style="color: var(--accent-green)">Completed</span>
+                    <span class="result-count" style="color: var(--accent-gold); font-weight: bold; margin-left: 10px;">Count: ${item.count}</span>
+                </div>
+                <div class="progress-bar"><div class="fill" style="width: 100%; background-color: var(--accent-green)"></div></div>
+                <div class="result-media-container" style="marginTop: 10px;">
+                    ${mediaHtml}
+                    <div class="result-actions" style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn-primary download-media-btn" data-url="${item.mediaUrl}" data-filename="detected_${item.fileName}${item.isImage ? '.jpg' : '.mp4'}" style="flex: 1; text-align: center; text-decoration: none; font-size: 0.9rem;">Download ${item.isImage ? 'Image' : 'Video'}</button>
+                        <button class="btn-primary view-analytics-btn" data-filename="${item.fileName}" style="flex: 1; font-size: 0.9rem;">View Analytics</button>
+                    </div>
+                </div>
+            `;
+
+            uploadList.appendChild(uploadItem);
+
+            // Re-attach listeners
+            const downloadBtn = uploadItem.querySelector('.download-media-btn');
+            downloadBtn.addEventListener('click', async () => {
+                const url = downloadBtn.getAttribute('data-url');
+                const filename = downloadBtn.getAttribute('data-filename');
+                try {
+                    const response = await fetch(url);
+                    const blob = await response.blob();
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(blobUrl);
+                } catch (error) {
+                    console.error('Download failed:', error);
+                }
+            });
+
+            const viewBtn = uploadItem.querySelector('.view-analytics-btn');
+            viewBtn.addEventListener('click', () => {
+                localStorage.setItem('selectedAnalyticsFilter', item.fileName);
+                window.location.href = 'analytics.html';
+            });
+        });
+    }
 }

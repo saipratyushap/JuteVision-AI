@@ -31,7 +31,7 @@ export async function signInWithGoogle() {
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: window.location.origin, // Redirect back to this page
+            redirectTo: `${window.location.origin}/dashboard.html`, // Redirect directly to dashboard
         }
     });
     return { data, error };
@@ -74,6 +74,6 @@ export async function requireAuth() {
 export async function requireNoAuth() {
     const { session } = await getSession();
     if (session) {
-        window.location.href = 'index.html';
+        window.location.href = 'dashboard.html';
     }
 }
