@@ -3,13 +3,17 @@
     /* ThirdEye Forest Green */
     --accent-gold: #fcc419;
     /* Brighter Yellow/Gold for ThirdEye */
-    --accent-cyan: #008ebf;
+    --accent-cyan: #22d3ee;
+    /* More vibrant Cyan from the reference */
     --text-main: #1a1a1a;
     --text-muted: #555555;
     --bg-white: #ffffff;
-    --grid-color: rgba(0, 142, 191, 0.1);
-    --card-bg: #f8fbff;
-    --transition: all 0.2s ease;
+    --bg-light: #fdfeff;
+    --bg-gradient: radial-gradient(circle at 50% 50%, #fdfeff 0%, #f5f9ff 100%);
+    --grid-color: rgba(0, 100, 255, 0.04);
+    /* Much more subtle grid */
+    --card-bg: #ffffff;
+    --transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 * {
@@ -22,29 +26,18 @@
 body {
     overflow-x: hidden;
     overflow-y: auto;
-    /* Ensure vertical scrolling is allowed */
+    scroll-behavior: smooth;
+    /* Smooth scrolling enabled */
 }
 
-.home-wrapper {
-    background-color: var(--bg-white);
-    color: var(--text-main);
-}
-
-/* Blueprint Grid Background */
-.grid-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
+.home-wrapper,
+.dashboard-wrapper,
+.app-container {
+    background-color: #F5F7FA;
+    min-height: 100vh;
     width: 100%;
-    height: 100%;
-    background:
-        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 100%),
-        linear-gradient(var(--grid-color) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-    background-size: 100% 100%, 45px 45px, 45px 45px;
-    z-index: -1;
-    pointer-events: none;
-    background-color: #f7fbff;
+    position: relative;
+    z-index: 1;
 }
 
 /* Header */
@@ -53,11 +46,11 @@ header {
     justify-content: space-between;
     align-items: center;
     padding: 20px 8%;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
+    background: #ffffff;
+    /* Solid white as requested */
     position: sticky;
     top: 0;
-    z-index: 1000;
+    z-index: 100;
 }
 
 .logo {
@@ -121,11 +114,15 @@ nav ul li a:hover {
     background: transparent;
 }
 
+.btn-outline:hover {
+    background: var(--primary-green);
+    color: white;
+}
+
 .btn-primary {
     padding: 10px 24px;
     background: var(--primary-green);
-    color: var(--accent-gold);
-    /* Yellow/Gold text as requested */
+    color: #ffffff;
     border-radius: 0;
     /* Square button */
     text-decoration: none;
@@ -141,48 +138,217 @@ nav ul li a:hover {
 }
 
 /* Hero Section */
+.section-title,
+.features-grid,
+.industries-section,
+footer {
+    scroll-margin-top: 100px;
+    /* Offset for sticky header */
+}
+
 .hero {
-    padding: 100px 8% 60px;
+    position: relative;
+    padding: 80px 8% 100px;
     text-align: center;
-    max-width: 1000px;
-    margin: 0 auto;
+    overflow: hidden;
+    width: 100%;
+    /* Subtle industrial cage ONLY in Hero section */
+    background-image:
+        linear-gradient(rgba(0, 100, 255, 0.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 100, 255, 0.15) 1px, transparent 1px);
+    background-size: 40px 40px;
+    /* Mask to blur/fade cage slightly at corners and sides, keeping middle clear - REDUCED BLUR */
+    -webkit-mask-image: radial-gradient(circle, black 60%, transparent 95%);
+    mask-image: radial-gradient(circle, black 60%, transparent 95%);
+}
+
+.hero h2,
+.hero p,
+.hero .cta-btn,
+.hero .trust-labels {
+    position: relative;
+    z-index: 1;
 }
 
 .hero h2 {
-    font-size: 3.5rem;
+    font-size: 2.5rem;
     color: var(--primary-green);
-    line-height: 1.1;
+    line-height: 1.15;
     margin-bottom: 25px;
-    font-weight: 700;
+    font-weight: 600;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    animation: fadeInUp 0.8s ease-out forwards;
 }
 
 .hero p {
-    font-size: 1.25rem;
-    color: var(--text-muted);
+    font-size: 1.15rem;
+    color: #000;
+    /* Full dark as requested */
     line-height: 1.6;
     margin-bottom: 40px;
+    font-weight: 400;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+    animation: fadeInUp 0.8s ease-out 0.2s forwards;
+    opacity: 0;
 }
 
 .cta-btn {
     padding: 14px 36px;
-    background: #008ebf;
+    background: var(--accent-cyan);
     color: white;
     border-radius: 0;
     /* Square button */
     text-decoration: none;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 1.05rem;
     display: inline-flex;
     align-items: center;
     gap: 12px;
     transition: var(--transition);
-    box-shadow: 0 4px 0px #006b91;
-    border: 1px solid #0077a1;
+    border: none;
+    box-shadow: none;
+    animation: fadeInUp 0.8s ease-out 0.4s forwards;
+    opacity: 0;
 }
 
 .cta-btn:hover {
     transform: translateY(2px);
     box-shadow: 0 1px 0px #006b91;
+}
+
+/* Scroll Reveal Animations */
+.reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* For elements that specifically need to fade in - like Hero */
+.fade-reveal {
+    opacity: 0;
+    animation: fadeInUp 0.8s ease-out forwards;
+}
+
+/* Staggered Delays */
+.delay-1 {
+    transition-delay: 0.1s;
+}
+
+.delay-2 {
+    transition-delay: 0.2s;
+}
+
+.delay-3 {
+    transition-delay: 0.3s;
+}
+
+.delay-4 {
+    transition-delay: 0.4s;
+}
+
+/* Hero Animation (On Load) */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Hero Sections are already defined at top, removing bottom duplicates */
+
+/* How It Works Section */
+.how-it-works {
+    padding: 20px 8% 120px;
+    /* Reduced top padding to move title up */
+    background: #ffffff;
+    position: relative;
+    z-index: 1;
+    scroll-margin-top: 100px;
+}
+
+.workflow-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 30px;
+    max-width: 1100px;
+    margin: 80px auto 0;
+    /* Increased top margin for the gap */
+}
+
+.workflow-step {
+    flex: 1;
+    text-align: center;
+    padding: 40px 30px;
+    background: #f0f7ff;
+    /* Light blue background from reference image */
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+    transition: var(--transition);
+}
+
+.workflow-step:hover {
+    transform: translateY(-8px);
+    background: #ffffff;
+    /* Switch to white on hover for contrast */
+    border-color: var(--primary-green);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+}
+
+.step-number {
+    font-size: 2.8rem;
+    font-weight: 900;
+    color: rgba(0, 0, 0, 0.25);
+    /* Much darker for visibility */
+    margin-bottom: -10px;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: -2px;
+}
+
+.workflow-step h4 {
+    font-size: 1.3rem;
+    color: #000;
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+.workflow-step p {
+    font-size: 1rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.step-arrow {
+    align-self: center;
+    font-size: 2rem;
+    color: var(--primary-green);
+    font-weight: 300;
+    opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+    .workflow-container {
+        flex-direction: column;
+    }
+
+    .step-arrow {
+        transform: rotate(90deg);
+        margin: 10px 0;
+    }
 }
 
 /* Trust Badges */
@@ -191,24 +357,26 @@ nav ul li a:hover {
     justify-content: center;
     gap: 40px;
     margin-top: 60px;
-    opacity: 0.7;
 }
 
 .trust-label {
     background: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    padding: 10px 24px;
+    border-radius: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     font-weight: 700;
-    font-size: 0.8rem;
-    color: #444;
-    border-bottom: 3px solid #ddd;
+    font-size: 0.85rem;
+    color: #111;
+    /* Full dark color as requested */
+    border-bottom: 3px solid var(--primary-green);
+    letter-spacing: 0.5px;
 }
 
 /* Primary Expertise Section */
 .section-title {
     text-align: center;
-    margin: 80px 0 20px;
+    margin: 0 0 80px;
+    /* Increased bottom margin */
 }
 
 .section-title h3 {
@@ -218,7 +386,8 @@ nav ul li a:hover {
 
 .section-subtitle {
     text-align: center;
-    color: var(--text-muted);
+    color: #000;
+    font-weight: 400;
     max-width: 700px;
     margin: 0 auto 50px;
     line-height: 1.6;
@@ -234,16 +403,18 @@ nav ul li a:hover {
 .feature-card {
     background: var(--card-bg);
     padding: 40px;
-    border-radius: 12px;
+    border-radius: 4px;
     text-align: center;
     transition: var(--transition);
     border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .feature-card:hover {
-    transform: translateY(-10px);
+    transform: translateY(-12px) scale(1.02);
     background: white;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+    border-color: var(--primary-green);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
+    /* Refined box-shadow */
 }
 
 .feature-icon {
@@ -255,13 +426,16 @@ nav ul li a:hover {
 .feature-card h4 {
     font-size: 1.4rem;
     margin-bottom: 20px;
+    font-weight: 700;
+    color: #000;
 }
 
 .feature-card p {
-    color: var(--text-muted);
+    color: #000;
     line-height: 1.6;
-    margin-bottom: 30px;
+    margin-bottom: 0;
     font-size: 0.95rem;
+    font-weight: 500;
 }
 
 .learn-more {
@@ -269,15 +443,17 @@ nav ul li a:hover {
     background: var(--accent-cyan);
     color: white;
     text-decoration: none;
-    border-radius: 4px;
+    border-radius: 0;
     font-weight: 500;
     font-size: 0.9rem;
 }
 
 /* Industry Section */
 .industries-section {
-    background: rgba(255, 255, 255, 0.8);
-    padding: 80px 8%;
+    padding: 0 8% 80px;
+    background: white;
+    position: relative;
+    z-index: 1;
 }
 
 .industries-grid {
@@ -290,9 +466,16 @@ nav ul li a:hover {
     display: flex;
     padding: 25px;
     background: white;
-    border-radius: 8px;
+    border-radius: 4px;
     gap: 20px;
-    border-bottom: 1px solid #eee;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    transition: var(--transition);
+}
+
+.industry-card:hover {
+    transform: translateX(10px);
+    border-color: var(--primary-green);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
 }
 
 .industry-icon {
@@ -303,25 +486,30 @@ nav ul li a:hover {
 .industry-info h5 {
     font-size: 1.1rem;
     margin-bottom: 10px;
+    font-weight: 700;
+    color: #000;
 }
 
 .industry-info p {
     font-size: 0.85rem;
-    color: var(--text-muted);
+    color: #000;
+    font-weight: 500;
     line-height: 1.5;
 }
 
 /* Footer Section */
 footer {
-    padding: 30px 8% 0;
-    background-color: #f1faf9;
-    /* Light mint/cyan background */
+    background: #effbf9;
+    /* Solid mint background */
     background-image:
-        linear-gradient(rgba(0, 142, 191, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 142, 191, 0.05) 1px, transparent 1px);
+        linear-gradient(rgba(0, 120, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 120, 255, 0.04) 1px, transparent 1px);
     background-size: 30px 30px;
-    border-top: 2px solid var(--primary-green);
-    border-bottom: 2px solid var(--primary-green);
+    padding: 100px 8% 40px;
+    /* Large top padding for the gap */
+    border-top: 4px solid var(--primary-green);
+    position: relative;
+    z-index: 10;
 }
 
 .footer-content {
@@ -441,4 +629,51 @@ textarea {
     .hero h2 {
         font-size: 2.2rem;
     }
+}
+
+/* Auth Page Styles */
+.auth-input:focus {
+    border-color: var(--primary-green) !important;
+    box-shadow: 0 0 0 4px rgba(45, 90, 39, 0.1);
+}
+
+.auth-page .grid-overlay {
+    opacity: 0.3;
+}
+
+/* Dashboard Layout with Top Nav */
+.dashboard-page header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.dashboard-main {
+    padding: 60px 8%;
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.dashboard-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 50px;
+}
+
+.dashboard-header-row h2 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -1px;
+}
+
+.active-link {
+    color: var(--primary-green) !important;
+    font-weight: 700;
 }

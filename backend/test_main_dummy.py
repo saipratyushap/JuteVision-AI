@@ -1,6 +1,6 @@
 import sys
 import os
-# Add the project root (JuteVision_AI) to sys.path
+# Add the project root (Sack_Detection) to sys.path
 # dirname is 'backend'. We need '..' to get to project root.
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:

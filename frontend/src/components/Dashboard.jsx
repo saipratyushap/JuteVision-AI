@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserButton } from "@clerk/clerk-react";
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import "../style.css";
 
 const Dashboard = () => {
@@ -10,8 +10,9 @@ const Dashboard = () => {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef(null);
     const socketRef = useRef(null);
+    const navigate = useNavigate();
 
-    // WebSocket Setup
+    // WebSocket Setup for live count
     useEffect(() => {
         const wsUrl = `ws://${window.location.hostname}:8000/ws`;
         socketRef.current = new WebSocket(wsUrl);
@@ -19,12 +20,7 @@ const Dashboard = () => {
         socketRef.current.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.count !== undefined) {
-                setCount(prev => {
-                    if (data.count > prev) {
-                        // Animation logic handled by CSS pulse-animation
-                    }
-                    return data.count;
-                });
+                setCount(data.count);
             }
         };
 
@@ -33,13 +29,22 @@ const Dashboard = () => {
         };
     }, []);
 
+    const handleLogout = async () => {
+        if (supabase) {
+            await supabase.auth.signOut();
+        }
+        navigate('/auth');
+    };
+
     const handleUpload = async (file) => {
+        if (!file) return;
+
         const taskId = Math.random().toString(36).substring(7);
         const newUpload = {
             id: taskId,
             name: file.name,
             status: 'Uploading...',
-            progress: 0,
+            progress: 30,
             count: null,
             videoUrl: null
         };
@@ -51,6 +56,10 @@ const Dashboard = () => {
         formData.append('file', file);
 
         try {
+            // Simulated upload progress for UI feel
+            setTimeout(() => updateUploadStatus(taskId, { progress: 60, status: 'Processing...' }), 1000);
+
+            // Real API call here
             const response = await fetch('/upload', {
                 method: 'POST',
                 body: formData
@@ -59,13 +68,12 @@ const Dashboard = () => {
             const data = await response.json();
 
             if (response.ok) {
-                updateUploadStatus(taskId, { status: 'Processing...', progress: 50 });
                 pollTaskStatus(data.task_id, taskId);
             } else {
                 throw new Error(data.detail || 'Upload failed');
             }
         } catch (error) {
-            updateUploadStatus(taskId, { status: 'Failed', error: true });
+            updateUploadStatus(taskId, { status: 'Failed', progress: 100, error: true });
         }
     };
 
@@ -85,7 +93,7 @@ const Dashboard = () => {
                     });
                 } else if (task.status === 'failed') {
                     clearInterval(interval);
-                    updateUploadStatus(localTaskId, { status: 'Failed', error: true });
+                    updateUploadStatus(localTaskId, { status: 'Failed', progress: 100, error: true });
                 }
             } catch (e) {
                 clearInterval(interval);
@@ -98,82 +106,100 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="app-container">
-            <div className="grid-overlay"></div>
-            <aside className="sidebar">
-                <div className="brand" style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', marginBottom: '3rem', paddingBottom: '5px' }}>
-                    <img src="/logo_main.png" alt="JuteVision Logo" style={{ height: '35px', display: 'block' }} />
-                    <h1 style={{ fontSize: '1.2rem', margin: 0, whiteSpace: 'nowrap', lineHeight: '1', display: 'flex', alignItems: 'baseline' }}>
-                        <span style={{ color: 'var(--primary-green)', fontWeight: '700' }}>JuteVision</span>
-                        <span style={{ color: 'var(--accent-gold)', fontWeight: '800', marginLeft: '5px' }}>AI</span>
-                    </h1>
+        <div className="dashboard-wrapper">
+            {/* Navbar */}
+            <nav className="dash-nav">
+                <div className="logo-area">
+                    <img src="/logo_main.png" alt="ThirdEye Logo" />
+                    <span className="separator">|</span>
+                    <h1>Sack Detection</h1>
                 </div>
-                <nav className="nav-menu">
-                    <Link to="/dashboard" className="nav-item active">Dashboard</Link>
-                    <Link to="/" className="nav-item">Landing Page</Link>
-                </nav>
-                <div className="system-status">
-                    <div className="status-indicator online connected"></div>
-                    <span>System Online</span>
-                </div>
-            </aside>
 
-            <main className="main-content">
-                <header className="top-bar">
+                <div className="nav-center">
+                    <Link to="/">Home</Link>
+                    <Link to="/dashboard" className="active">Dashboard</Link>
+                    <Link to="#">Analytics</Link>
+                </div>
+
+                <div className="nav-right">
+                    <button onClick={handleLogout} className="btn-signout">Sign Out</button>
+                </div>
+            </nav>
+
+            <main className="dash-container">
+                <div className="dash-header">
                     <h2>Real-Time Monitoring</h2>
-                    <div className="actions" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                        <button className="btn-secondary">Export Data</button>
-                        <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
+                    <div className="header-actions">
+                        <button className="btn-secondary-dash">Export Data</button>
+                        <button className="btn-primary-dash" onClick={() => setIsModalOpen(true)}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                            </svg>
                             Upload Video
                         </button>
-                        <UserButton afterSignOutUrl="/" />
                     </div>
-                </header>
+                </div>
 
                 <div className="dashboard-grid">
-                    <div className="card video-feed-card">
-                        <div className="card-header">
-                            <h3>Live Feed 01</h3>
-                            <span className="live-badge">LIVE</span>
-                        </div>
-                        <div className="video-container">
-                            <img src="/stream" alt="Live Camera Feed" className="live-stream-img"
-                                onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML += '<p class="error-msg">Stream Offline</p>' }} />
-                            <div className="overlay-ui">
-                                <div className="zone-line"></div>
+                    {/* Left Side: Live Feed */}
+                    <div className="dash-card video-feed-card">
+                        <div className="card-title">
+                            Live Camera Feed
+                            <div className="live-indicator">
+                                <span className="dot-glow"></span>
+                                LIVE
                             </div>
+                        </div>
+                        <div className="video-wrapper">
+                            <img
+                                src="/stream"
+                                alt="Live Feed"
+                                className="live-stream-img"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.parentElement.innerHTML += '<div style="color: #64748b; text-align: center; padding-top: 20%;">Camera Offline</div>'
+                                }}
+                            />
                         </div>
                     </div>
 
-                    <div className="stats-column">
-                        <div className="card stat-card total-count">
-                            <h3>Total Bags</h3>
-                            <div className={`stat-value ${count > 0 ? 'pulse-animation' : ''}`} id="current-count">{count}</div>
-                            <div className="stat-trend positive">+12% vs last hour</div>
+                    {/* Right Side Cards */}
+                    <div className="stats-stack">
+                        {/* Total Bags Card */}
+                        <div className="dash-card stat-card-total">
+                            <div className="stat-header">
+                                <div className="stat-label">Total Bags</div>
+                                <div className="stat-icon">📦</div>
+                            </div>
+                            <div className="stat-main">
+                                <div className={`stat-big-number ${count > 0 ? 'pulse-animation' : ''}`}>
+                                    {count}
+                                </div>
+                                <div className="stat-sub">Detected in last hour</div>
+                            </div>
                         </div>
 
-                        <div className="card upload-status-card">
-                            <h3>Upload Status</h3>
+                        {/* Upload Status Card */}
+                        <div className="dash-card upload-card">
+                            <div className="card-title">Upload Status</div>
                             <div className="upload-list">
                                 {uploads.length === 0 ? (
-                                    <div className="empty-state">No active uploads</div>
+                                    <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '0.9rem' }}>
+                                        No active uploads
+                                    </div>
                                 ) : (
                                     uploads.map(u => (
-                                        <div key={u.id} className={`upload-item ${u.status.toLowerCase()}`}>
-                                            <div className="file-info">
+                                        <div key={u.id} className="upload-item">
+                                            <div className="upload-info">
                                                 <span className="file-name">{u.name}</span>
-                                                <span className="status-text" style={{ color: u.error ? 'var(--danger)' : '' }}>{u.status}</span>
-                                                {u.count !== null && <span className="result-count" style={{ color: 'var(--accent-gold)', fontWeight: 'bold', marginLeft: '10px' }}>Count: {u.count}</span>}
+                                                <span className={`status-tag ${u.status.toLowerCase().replace('...', '')}`}>
+                                                    {u.status}
+                                                </span>
                                             </div>
-                                            <div className="progress-bar">
-                                                <div className="fill" style={{ width: `${u.progress}%`, backgroundColor: u.status === 'Completed' ? 'var(--accent-green)' : '' }}></div>
+                                            <div className="progress-container">
+                                                <div className="progress-fill" style={{ width: `${u.progress}%` }}></div>
                                             </div>
-                                            {u.videoUrl && (
-                                                <div className="result-video-container" style={{ marginTop: '10px' }}>
-                                                    <video controls src={u.videoUrl} style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--border-color)' }}></video>
-                                                    <a href={u.videoUrl} download className="download-link" style={{ display: 'block', marginTop: '5px', color: 'var(--accent-green)', fontSize: '0.8rem' }}>Download Processed Video</a>
-                                                </div>
-                                            )}
                                         </div>
                                     ))
                                 )}
@@ -181,33 +207,30 @@ const Dashboard = () => {
                         </div>
                     </div>
                 </div>
+            </main>
 
-                {isModalOpen && (
-                    <div className="modal-backdrop active" style={{ opacity: 1, pointerEvents: 'auto' }} onClick={(e) => e.target.className === 'modal-backdrop active' && setIsModalOpen(false)}>
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <h3>Upload Video for Analysis</h3>
-                                <button className="close-btn" onClick={() => setIsModalOpen(false)}>&times;</button>
-                            </div>
-                            <div className={`drop-zone ${isDragging ? 'dragover' : ''}`}
-                                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                                onDragLeave={() => setIsDragging(false)}
-                                onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleUpload(e.dataTransfer.files[0]); }}
-                                onClick={() => fileInputRef.current.click()}>
-                                <div className="upload-icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                        <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" />
-                                        <path d="M17 8L12 3L7 8" />
-                                        <path d="M12 3V15" />
-                                    </svg>
-                                </div>
-                                <p>Drag & Drop video here or <span>Browse</span></p>
-                                <input type="file" ref={fileInputRef} accept="video/mp4,video/avi" hidden onChange={(e) => handleUpload(e.target.files[0])} />
-                            </div>
+            {/* Upload Modal (kept functional) */}
+            {isModalOpen && (
+                <div className="modal-backdrop active" onClick={(e) => e.target.className.includes('modal-backdrop') && setIsModalOpen(false)}>
+                    <div className="modal-content" style={{ borderRadius: '20px' }}>
+                        <div className="modal-header">
+                            <h3>Upload for Detection</h3>
+                            <button className="close-btn" onClick={() => setIsModalOpen(false)}>&times;</button>
+                        </div>
+                        <div
+                            className={`drop-zone ${isDragging ? 'dragover' : ''}`}
+                            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                            onDragLeave={() => setIsDragging(false)}
+                            onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleUpload(e.dataTransfer.files[0]); }}
+                            onClick={() => fileInputRef.current.click()}
+                            style={{ borderRadius: '12px' }}
+                        >
+                            <p>Drag & Drop video here or <span>Browse</span></p>
+                            <input type="file" ref={fileInputRef} hidden onChange={(e) => handleUpload(e.target.files[0])} />
                         </div>
                     </div>
-                )}
-            </main>
+                </div>
+            )}
         </div>
     );
 };

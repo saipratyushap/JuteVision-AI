@@ -1,10 +1,10 @@
-# JuteVision AI - Automated Jute Bag Counter
+# Sack Detection - Automated Bag Counter
 
-An AI-powered system for automated counting of jute bags using YOLOv8 object detection and tracking.
+A vision-powered system for automated counting of bags using YOLOv8 object detection and tracking.
 
 ## 🎯 Features
 
-- **Real-time Jute Bag Detection** - YOLOv8-powered object detection
+- **Real-time Bag Detection** - YOLOv8-powered object detection
 - **Automatic Counting** - Tracks unique bags with persistent IDs
 - **Video Processing** - Upload and process warehouse videos
 - **Live Streaming** - MJPEG camera feed support
@@ -35,8 +35,8 @@ An AI-powered system for automated counting of jute bags using YOLOv8 object det
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/saipratyushap/JuteVision-AI.git
-cd JuteVision-AI
+git clone https://github.com/saipratyushap/Sack-Detection.git
+cd Sack-Detection
 ```
 
 ### 2. Download YOLOv8 Model
@@ -88,7 +88,7 @@ The frontend will be available at `http://localhost:5173`
 ## 📁 Project Structure
 
 ```
-JuteVision_AI/
+Sack_Detection/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py         # FastAPI application
