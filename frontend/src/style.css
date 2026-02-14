@@ -1,13 +1,14 @@
 :root {
-    --bg-dark: #0f1115;
-    --bg-card: #181b21;
-    --text-primary: #ffffff;
-    --text-secondary: #9ca3af;
-    --accent-green: #10b981;
-    /* Neon Green for success/active */
+    --bg-dark: #f8fbff;
+    /* Changed to light blueprint-like blue */
+    --bg-card: #ffffff;
+    --text-primary: #1a1a1a;
+    /* Dark text for light background */
+    --text-secondary: #555555;
+    --accent-green: #2e7d32;
+    /* Match landing page green */
     --accent-gold: #f59e0b;
-    /* Jute Gold */
-    --border-color: #2d3748;
+    --border-color: #e2e8f0;
     --danger: #ef4444;
     --font-main: 'Inter', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
@@ -19,17 +20,19 @@
     box-sizing: border-box;
 }
 
+/* Base body reset */
 body {
-    background-color: var(--bg-dark);
-    color: var(--text-primary);
-    font-family: var(--font-main);
-    overflow: hidden;
-    /* App-like feel */
+    margin: 0;
+    padding: 0;
 }
 
 .app-container {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: var(--font-main);
     display: flex;
     height: 100vh;
+    overflow: hidden;
 }
 
 /* Sidebar */
@@ -121,11 +124,16 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
 }
 
 .btn-primary {
     background-color: var(--accent-green);
-    color: #000;
+    color: white;
+    /* Changed to white for better contrast on green */
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 8px;
@@ -197,7 +205,7 @@ body {
     border-radius: 8px;
     overflow: hidden;
     position: relative;
-    border: 1px solid #333;
+    border: 1px solid var(--border-color);
 }
 
 .live-stream-img {
