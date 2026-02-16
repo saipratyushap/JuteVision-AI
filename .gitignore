@@ -10,9 +10,12 @@ env/
 .DS_Store
 .git
 
-# Data & Output (Selective)
-backend/detections/
-backend/uploads/
+# Data & Output (Tracked)
+# These folders contain processed results and raw test videos.
+# backend/detections/
+# backend/uploads/
+
+# Temporary Data (Ignored)
 backend/temp_uploads/
 
 # Shared Media
