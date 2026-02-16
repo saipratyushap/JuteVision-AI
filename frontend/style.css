@@ -1403,27 +1403,34 @@ input:checked+.slider:before {
 /* Dashboard Usage Guide (v9.9) */
 .usage-guide {
     margin-top: 3rem;
-    padding: 2.5rem;
-    background: #f8fafc;
-    border-radius: 16px;
-    border: 1px solid var(--border-color);
-    margin-bottom: 2rem;
+    padding: 3rem;
+    background: #f0f7f0;
+    /* Light sage green background */
+    border-radius: 20px;
+    border: 1px solid #d1e2d1;
+    margin-bottom: 3rem;
+    font-family: 'Inter', sans-serif;
 }
 
 .usage-guide-header {
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
+    border-bottom: 2px solid #3d6b3d;
+    padding-bottom: 1.5rem;
 }
 
 .usage-guide-header h3 {
-    font-size: 1.25rem;
-    color: var(--text-primary);
+    font-size: 1.75rem;
+    color: #064e3b;
+    /* Dark emerald green */
     margin-bottom: 0.5rem;
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: -0.02em;
 }
 
 .usage-guide-header p {
-    color: var(--text-secondary);
-    font-size: 0.95rem;
+    color: #4b5563;
+    font-size: 1.1rem;
+    font-weight: 500;
 }
 
 .usage-grid {
@@ -1435,43 +1442,49 @@ input:checked+.slider:before {
 .usage-card {
     background: white;
     padding: 2rem;
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    align-items: center;
+    /* Centered as per photo */
+    text-align: center;
+    /* Centered as per photo */
+    gap: 1.5rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .usage-card:hover {
-    transform: translateY(-4px);
-    border-color: var(--accent-green);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    transform: translateY(-8px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
 }
 
 .step-number {
-    width: 36px;
-    height: 36px;
-    background: var(--accent-green);
+    width: 44px;
+    height: 44px;
+    background: #5d824a;
+    /* Matches the sage circle green */
     color: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 1.25rem;
+    box-shadow: 0 4px 8px rgba(93, 130, 74, 0.3);
 }
 
 .usage-card h4 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.75rem;
 }
 
 .usage-card p {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
+    font-size: 0.95rem;
+    color: #6b7280;
     line-height: 1.6;
 }
 
@@ -1487,47 +1500,8 @@ input:checked+.slider:before {
     }
 
     .usage-guide {
-        padding: 1.5rem;
+        padding: 2rem;
     }
-}
-
-/* Compact Repositioning for Usage Guide (v9.9.1) */
-.usage-guide {
-    margin-top: 1rem !important;
-    padding: 1.5rem !important;
-    border-radius: 12px !important;
-}
-
-.usage-grid {
-    gap: 1rem !important;
-}
-
-.usage-card {
-    padding: 1.25rem !important;
-    flex-direction: row !important;
-    align-items: flex-start !important;
-    gap: 0.75rem !important;
-}
-
-.usage-card-text {
-    flex: 1;
-}
-
-.usage-card h4 {
-    margin-bottom: 0.25rem;
-    font-size: 0.95rem !important;
-}
-
-.usage-card p {
-    font-size: 0.8rem !important;
-    line-height: 1.4 !important;
-}
-
-.step-number {
-    width: 28px !important;
-    height: 28px !important;
-    font-size: 0.85rem !important;
-    flex-shrink: 0;
 }
 
 /* Style Refinement for Top Position (v9.9.2) */
