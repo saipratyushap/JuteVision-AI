@@ -9,11 +9,14 @@ venv/
 env/
 .DS_Store
 .git
+
+# Data & Output (Selective)
 backend/detections/
 backend/uploads/
 backend/temp_uploads/
-backend/runs/
-backend/training_data/
+
+# Shared Media
 *.mp4
 !frontend/assets/samples/*.mp4
-*.pt
+
+# Note: AI Models (.pt), Training Data, and Runs are now tracked.
