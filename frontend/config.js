@@ -17,7 +17,9 @@ export const ENDPOINTS = {
     TASKS: '/tasks', // Append /:taskId
     STREAM: '/stream',
     RESET: '/reset',
-    WS: '/ws'
+    WS: '/ws',
+    CAMERA_ON: '/camera/on',
+    CAMERA_OFF: '/camera/off'
 };
 
 // Supabase Configuration

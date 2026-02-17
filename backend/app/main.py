@@ -46,24 +46,40 @@ async def lifespan(app: FastAPI):
 
 from fastapi.staticfiles import StaticFiles
 
-# WebSocket Manager
+# WebSocket Manager with User Scoping
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: dict = {} # userId -> [WebSockets]
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, userId: str, websocket: WebSocket):
         await websocket.accept()
-        self.active_connections.append(websocket)
+        if userId not in self.active_connections:
+            self.active_connections[userId] = []
+        self.active_connections[userId].append(websocket)
 
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+    def disconnect(self, userId: str, websocket: WebSocket):
+        if userId in self.active_connections:
+            self.active_connections[userId].remove(websocket)
+            if not self.active_connections[userId]:
+                del self.active_connections[userId]
 
-    async def broadcast(self, message: dict):
-        for connection in self.active_connections:
-            try:
-                await connection.send_json(message)
-            except Exception as e:
-                print(f"Error sending message: {e}")
+    async def broadcast(self, message: dict, userId: str = None):
+        if userId:
+            # Send to specific user
+            if userId in self.active_connections:
+                for connection in self.active_connections[userId]:
+                    try:
+                        await connection.send_json(message)
+                    except:
+                        pass
+        else:
+            # Global broadcast (system alerts etc)
+            for user_conns in self.active_connections.values():
+                for connection in user_conns:
+                    try:
+                        await connection.send_json(message)
+                    except:
+                        pass
 
 manager = ConnectionManager()
 
@@ -77,19 +93,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+@app.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: str):
+    await manager.connect(user_id, websocket)
     try:
-        # Send initial state
-        if tracker:
-            await websocket.send_json({"count": tracker.total_count})
-            
+        # Send initial state (Optional: reset session count for this user?)
         while True:
-            # Keep connection alive
             await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        manager.disconnect(user_id, websocket)
 
 # --- GLOBAL STATE ---
 tasks = {}
@@ -98,6 +110,29 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DETECTION_DIR = os.path.join(BASE_DIR, "detections")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads") # New upload directory
 DATA_DIR = os.path.join(BASE_DIR, "data") # Directory for persistent data
+
+# Physical Camera Control Flag
+_camera_active = False
+
+class CameraManager:
+    _instance = None
+    _cap = None
+
+    @classmethod
+    def get_cap(cls):
+        if cls._cap is None:
+            print("Opening Camera Hardware Singleton...")
+            cls._cap = cv2.VideoCapture(0)
+        return cls._cap
+
+    @classmethod
+    def stop(cls):
+        if cls._cap is not None:
+            print("Force Releasing Camera Hardware Singleton...")
+            cls._cap.release()
+            cls._cap = None
+        return True
+
 TASK_FILE = os.path.join(DATA_DIR, "tasks.json")
 
 def load_tasks():
@@ -129,14 +164,14 @@ TEMP_DIR = "backend/temp_uploads" # Use the correct path relative to root if run
 # Mount static files for video download (Now points to detections folder)
 app.mount("/download", StaticFiles(directory=DETECTION_DIR), name="download")
 
-def process_video_task(task_id: str, video_path: str, mode: str = "static"):
+def process_video_task(task_id: str, video_path: str, mode: str = "static", user_id: str = "anonymous"):
     """
     Background task to process video and update status.
     """
     global tracker, zone_tracker
     if not tracker or ((mode == "zone" or mode == "conveyor") and not zone_tracker):
         print("Tracker(s) not initialized!")
-        tasks[task_id] = {"status": "failed", "error": "Tracker not initialized"}
+        tasks[task_id] = {"status": "failed", "error": "Tracker not initialized", "user_id": user_id}
         save_tasks()
         return
 
@@ -153,7 +188,7 @@ def process_video_task(task_id: str, video_path: str, mode: str = "static"):
             save_tasks()
         
         try:
-            asyncio.run(manager.broadcast(data))
+            asyncio.run(manager.broadcast(data, userId=user_id))
         except:
             pass
         
@@ -204,13 +239,13 @@ def process_video_task(task_id: str, video_path: str, mode: str = "static"):
         print(f"Task {task_id} failed: {e}")
         tasks[task_id] = {"status": "failed", "error": str(e)}
 
-def process_image_task(task_id: str, image_path: str):
+def process_image_task(task_id: str, image_path: str, user_id: str = "anonymous"):
     """
     Background task to process an image.
     """
     global tracker
     if not tracker:
-        tasks[task_id] = {"status": "failed", "error": "Tracker not initialized"}
+        tasks[task_id] = {"status": "failed", "error": "Tracker not initialized", "user_id": user_id}
         save_tasks()
         return
 
@@ -218,7 +253,7 @@ def process_image_task(task_id: str, image_path: str):
     
     # Callback for real-time updates
     def safe_broadcast(data: dict):
-        asyncio.run(manager.broadcast(data))
+        asyncio.run(manager.broadcast(data, userId=user_id))
     
     try:
         output_filename = f"detected_{task_id}.jpg"
@@ -230,9 +265,10 @@ def process_image_task(task_id: str, image_path: str):
         # Add to task results
         results["video_url"] = f"/download/{output_filename}" # Frontend expects video_url for display
         results["is_image"] = True # Flag for frontend
+        results["user_id"] = user_id
         tasks[task_id] = results
         save_tasks()
-        asyncio.run(manager.broadcast({"count": tracker.total_count}))
+        asyncio.run(manager.broadcast({"count": tracker.total_count}, userId=user_id))
         
     except Exception as e:
         print(f"Task {task_id} failed: {e}")
@@ -240,7 +276,12 @@ def process_image_task(task_id: str, image_path: str):
         save_tasks()
 
 @app.post("/upload")
-async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File(...), mode: str = Form("static")):
+async def upload_file(
+    background_tasks: BackgroundTasks, 
+    file: UploadFile = File(...), 
+    mode: str = Form("static"),
+    user_id: str = Form("anonymous")
+):
     """
     Uploads a file (Video or Image) and starts processing.
     """
@@ -271,14 +312,14 @@ async def upload_file(background_tasks: BackgroundTasks, file: UploadFile = File
     if zone_tracker: zone_tracker.reset_state()
     
     # Initial task status
-    tasks[task_id] = {"status": "processing", "progress": 0, "file": file.filename, "mode": mode}
+    tasks[task_id] = {"status": "processing", "progress": 0, "file": file.filename, "mode": mode, "user_id": user_id}
     save_tasks()
     
     # Start background processing
     if is_image:
-        background_tasks.add_task(process_image_task, task_id, file_location)
+        background_tasks.add_task(process_image_task, task_id, file_location, user_id)
     else:
-        background_tasks.add_task(process_video_task, task_id, file_location, mode)
+        background_tasks.add_task(process_video_task, task_id, file_location, mode, user_id)
     
     return {"task_id": task_id, "message": "Upload accepted and processing started."}
 
@@ -307,38 +348,55 @@ def get_task_status(task_id: str):
 
 def generate_frames():
     """
-    Generator for camera stream. 
+    Generator for camera stream using Singleton Manager. 
     """
-    global tracker
+    global tracker, _camera_active
     if not tracker:
         return
 
-    cap = cv2.VideoCapture(0) # Open default camera
+    cap = CameraManager.get_cap()
     
-    while True:
-        success, frame = cap.read()
-        if not success:
-            break
-        
-        # Run Live AI Processing
-        # This updates the global tracker.total_count
-        frame = tracker.process_live_frame(frame)
-        
-        # Broadcast update to UI every 5 frames to avoid flooding
-        # (Optional, but good for keeping the "Total Count" card in sync)
-        # if tracker.total_count % 1 == 0: 
-        #    ... (requires async magic inside sync generator, skipping for now, stream has visual count)
-        
-        ret, buffer = cv2.imencode('.jpg', frame)
-        frame_bytes = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-        
-    cap.release()
+    try:
+        while _camera_active:
+            success, frame = cap.read()
+            if not success:
+                # If camera fails during stream, try to reset singleton
+                CameraManager.stop()
+                break
+            
+            # Run Live AI Processing
+            frame = tracker.process_live_frame(frame)
+            
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame_bytes = buffer.tobytes()
+            yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            
+            # Small sleep to yield control
+            import time
+            time.sleep(0.01)
+    finally:
+        # We don't release here anymore, we wait for explicit /camera/off
+        print("Stream Generator segment ended.")
 
 @app.get("/stream")
 def video_feed():
     return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+@app.post("/camera/on")
+async def camera_on():
+    global _camera_active
+    _camera_active = True
+    print("UI Requested Camera ON")
+    return {"status": "camera_powering_up"}
+
+@app.post("/camera/off")
+async def camera_off():
+    global _camera_active
+    _camera_active = False
+    CameraManager.stop() # HARD STOP HARDWARE
+    print("UI Requested Camera OFF - HARDWARE KILLED")
+    return {"status": "camera_shutting_down"}
 
 if __name__ == "__main__":
     import uvicorn

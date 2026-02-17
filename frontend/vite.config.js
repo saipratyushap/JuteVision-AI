@@ -10,6 +10,7 @@ export default defineConfig({
             '/download': BACKEND_URL,
             '/reset': BACKEND_URL,
             '/static': BACKEND_URL, // Common path for backend static files
+            '/camera': BACKEND_URL, // Proxy camera control endpoints
             '/ws': {
                 target: BACKEND_WS_URL,
                 ws: true

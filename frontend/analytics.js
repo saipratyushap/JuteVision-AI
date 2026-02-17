@@ -1,7 +1,18 @@
 import { requireAuth, signOut } from './auth.js';
 
-// Protect Route
-requireAuth();
+// Protect Route & Get User ID
+let userId = null;
+const initAuth = async () => {
+    const session = await requireAuth();
+    if (session) {
+        userId = session.user.id;
+        connectWebSocket();
+        initDashboard();
+    }
+};
+initAuth();
+
+const getAnalyticsKey = () => userId ? `analyticsData_${userId}` : 'analyticsData';
 
 // Logout Logic
 const logoutBtn = document.getElementById('nav-logout');
@@ -40,6 +51,7 @@ const colors = {
 
 // Initialize Dashboard
 function initDashboard() {
+    if (!userId) return; // Wait for auth
     loadAnalyticsData();
     updateDate();
     // Update date every minute to keep it "real-time"
@@ -83,7 +95,8 @@ function initDashboard() {
 
 // Load Data
 function loadAnalyticsData() {
-    const storedData = localStorage.getItem('analyticsData');
+    const storageKey = getAnalyticsKey();
+    const storedData = localStorage.getItem(storageKey);
     if (storedData) {
         state.allData = JSON.parse(storedData) || [];
     } else {
@@ -216,8 +229,12 @@ function renderTable(data) {
             </td>
             <td style="font-weight: 600;">${item.count} Bags</td>
             <td><span class="status-badge ${badgeClass}">${statusText}</span></td>
+            <td><span style="font-family: 'JetBrains Mono'; color: var(--accent-green);">${item.actualCount !== undefined ? item.actualCount : item.count}</span></td>
             <td>
                 <div class="action-cell">
+                    <button class="action-btn verify-btn" title="Verify Count" style="color: var(--accent-green);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    </button>
                     <button class="action-btn" title="View Report">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     </button>
@@ -262,9 +279,30 @@ if (tableBody) {
         const fileName = row.querySelector('.file-cell span').textContent;
         const count = row.cells[2].textContent;
         const status = row.cells[3].textContent.trim();
+        const verifiedVal = row.cells[4].textContent.trim();
         const time = row.cells[0].textContent;
 
-        if (btn.title === 'View Report') {
+        if (btn.title === 'Verify Count') {
+            const currentActual = verifiedVal === '--' ? count : verifiedVal;
+            const actualCount = prompt(`Verify analysis for ${fileName}:\n\nAI Count: ${count}\nConfirm Actual Count:`, currentActual);
+            if (actualCount !== null) {
+                const parsedActual = parseInt(actualCount);
+                if (!isNaN(parsedActual)) {
+                    // Update state
+                    const index = state.allData.findIndex(item => item.time === time && item.filename === fileName);
+                    if (index > -1) {
+                        state.allData[index].status = 'Verified';
+                        state.allData[index].actualCount = parsedActual;
+
+                        // Save to localStorage
+                        localStorage.setItem('analyticsData', JSON.stringify(state.allData));
+
+                        // Re-render
+                        renderDashboard(state.filteredData);
+                    }
+                }
+            }
+        } else if (btn.title === 'View Report') {
             alert(`Report Details:\n\nFile: ${fileName}\nTime: ${time}\nBags: ${count}\nStatus: ${status}`);
         } else if (btn.title === 'Download CSV') {
             const csvContent = `data:text/csv;charset=utf-8,Time,File,Count,Status\n${time},${fileName},${count},${status}`;
@@ -283,7 +321,7 @@ if (tableBody) {
                     state.allData.splice(index, 1);
 
                     // Update LocalStorage
-                    localStorage.setItem('analyticsData', JSON.stringify(state.allData));
+                    localStorage.setItem(getAnalyticsKey(), JSON.stringify(state.allData));
 
                     // Re-render
                     // If a filter is active, re-apply it
@@ -316,7 +354,19 @@ function updateGlobalStats(data) {
     });
 
     const avgBags = totalUploads > 0 ? Math.round(totalBags / totalUploads) : 0;
-    const successRate = totalUploads > 0 ? Math.round((successCount / totalUploads) * 100) : 100;
+
+    // v12.0: Real-world Accuracy Score calculation
+    let totalAiCount = 0;
+    let totalActualCount = 0;
+    data.forEach(item => {
+        const aiCount = parseInt(item.count) || 0;
+        const actualCount = item.actualCount !== undefined ? (parseInt(item.actualCount) || 0) : aiCount;
+        totalAiCount += aiCount;
+        totalActualCount += actualCount;
+    });
+
+    const accuracyScore = totalActualCount > 0 ? Math.round((Math.min(totalAiCount, totalActualCount) / Math.max(totalAiCount, totalActualCount)) * 100) : 0;
+    const successRate = totalUploads > 0 ? accuracyScore : 0;
 
     // v9.5 Calculate Peak Hour (Hour with most bags)
     const hourlyCounts = new Array(24).fill(0);
@@ -374,7 +424,24 @@ function updateGlobalStats(data) {
 let productionChartInstance = null;
 let statusChartInstance = null;
 
-// 1. Production Trend Chart (v11.2 - Supports Daily/Weekly)
+let socket = null;
+const connectWebSocket = () => {
+    if (!userId) return;
+    const wsUrl = `ws://${window.location.hostname}:8000/ws/${userId}`;
+    socket = new WebSocket(wsUrl);
+
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.count !== undefined && document.getElementById('metric-total-bags')) {
+            // Optional: Live update charts or KPIs here
+            loadAnalyticsData();
+        }
+    };
+
+    socket.onclose = () => {
+        setTimeout(connectWebSocket, 3000);
+    };
+};
 function updateProductionChart(data, range = 'daily') {
     const ctx = document.getElementById('productionChart');
     if (!ctx) return;
@@ -407,11 +474,8 @@ function updateProductionChart(data, range = 'daily') {
         // In a real DB we'd have dates, here we simulation based on day offsets
         const dailyCounts = new Array(7).fill(0);
 
-        // Mocking: Some historical data + today's real data
-        const historical = [120, 150, 180, 200, 160];
+        // v13.0: Removed mock historical data to show real user results only
         const todayIndex = (new Date().getDay() + 6) % 7; // Mon=0, Sun=6
-
-        historical.forEach((v, i) => { if (i < todayIndex) dailyCounts[i] = v; });
 
         // Add current session data to today's slot
         let sessionTotal = 0;
@@ -497,7 +561,7 @@ function updateStatusChart(data) {
     if (statusChartInstance) statusChartInstance.destroy();
 
     // Update Center Text
-    const rate = (success + failed) > 0 ? Math.round((success / (success + failed)) * 100) : 100;
+    const rate = (success + failed) > 0 ? Math.round((success / (success + failed)) * 100) : 0;
     const centerText = document.getElementById('donut-total');
     if (centerText) centerText.textContent = `${rate}%`;
 

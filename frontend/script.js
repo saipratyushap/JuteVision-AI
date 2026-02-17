@@ -1,8 +1,20 @@
 import { requireAuth, signOut } from './auth.js';
 import { API_BASE_URL, ENDPOINTS, getApiUrl, getWsUrl } from './config.js';
 
-// Protect Route
-requireAuth();
+// Protect Route & Get User ID
+let userId = null;
+const initAuth = async () => {
+    const session = await requireAuth();
+    if (session) {
+        userId = session.user.id;
+        connectWebSocket(); // Start user-specific dynamic updates
+        loadRecentUploads();
+        updateGlobalStats();
+    }
+};
+initAuth();
+
+const getAnalyticsKey = () => userId ? `analyticsData_${userId}` : 'analyticsData';
 
 const uploadBtn = document.getElementById('upload-btn');
 const modal = document.getElementById('upload-modal');
@@ -98,6 +110,7 @@ async function handleUpload(file) {
     // Get Selected Mode
     const selectedMode = document.querySelector('input[name="analysis-mode"]:checked').value;
     formData.append('mode', selectedMode);
+    if (userId) formData.append('user_id', userId);
 
     try {
         const response = await fetch(getApiUrl(ENDPOINTS.UPLOAD), {
@@ -244,7 +257,8 @@ function addAnalyticsRow(filename, count, status) {
 
     // Get existing data from localStorage
     let analyticsData = [];
-    const storedData = localStorage.getItem('analyticsData');
+    const storageKey = getAnalyticsKey();
+    const storedData = localStorage.getItem(storageKey);
     if (storedData) {
         analyticsData = JSON.parse(storedData);
     }
@@ -254,7 +268,8 @@ function addAnalyticsRow(filename, count, status) {
         time: timeString,
         filename: filename,
         count: count,
-        status: status
+        status: status,
+        actualCount: count
     });
 
     // Keep only last 50 entries
@@ -263,15 +278,14 @@ function addAnalyticsRow(filename, count, status) {
     }
 
     // Save back to localStorage
-    localStorage.setItem('analyticsData', JSON.stringify(analyticsData));
+    localStorage.setItem(getAnalyticsKey(), JSON.stringify(analyticsData));
 }
 
 // Camera Toggle Logic
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Loaded - Initializing Camera Toggle and Loading Results");
 
-    // Load persisted dashboard items
-    loadRecentUploads();
+    // Results will be loaded via initAuth() once userId is ready
 
     const cameraToggle = document.getElementById('camera-toggle');
     const cameraFeed = document.getElementById('camera-feed');
@@ -280,10 +294,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (cameraToggle && cameraFeed) {
         // Function to update UI based on toggle state
-        const updateCameraState = () => {
+        const updateCameraState = async () => {
             console.log("Updating Camera State. Checked:", cameraToggle.checked);
             if (cameraToggle.checked) {
-                // Enable Camera
+                // Enable Camera - Inform backend first to power up hardware
+                try {
+                    await fetch(getApiUrl(ENDPOINTS.CAMERA_ON), { method: 'POST' });
+                } catch (e) {
+                    console.error("Hardware activation signal failed:", e);
+                }
+
                 // Add timestamp to prevent caching issues when re-enabling
                 cameraFeed.src = `${streamUrl}?t=${new Date().getTime()}`;
                 cameraFeed.style.display = 'block';
@@ -291,10 +311,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Hide placeholder
                 if (cameraPlaceholder) cameraPlaceholder.style.display = 'none';
             } else {
-                // Disable Camera
+                // Disable Camera - Inform backend to kill hardware stream immediately
+                try {
+                    await fetch(getApiUrl(ENDPOINTS.CAMERA_OFF), { method: 'POST' });
+                } catch (e) {
+                    console.error("Hardware deactivation signal failed:", e);
+                }
+
                 cameraFeed.style.display = 'none';
-                cameraFeed.src = "";
-                cameraFeed.removeAttribute('src'); // Stop stream
+
+                // v15.5 Precision Fix: Force browser to drop MJPEG connection
+                cameraFeed.src = "about:blank";
+                cameraFeed.removeAttribute('src');
 
                 // Show placeholder
                 if (cameraPlaceholder) cameraPlaceholder.style.display = 'flex';
@@ -336,45 +364,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // WebSocket Connection Logic
 // Connect to backend WebSocket (backend runs on port 8000)
-const wsUrl = getWsUrl(ENDPOINTS.WS);
-const socket = new WebSocket(wsUrl);
+// wait for userId before connecting
+let socket = null;
+const connectWebSocket = () => {
+    if (!userId) return;
+    const wsUrl = `${getWsUrl(ENDPOINTS.WS)}/${userId}`;
+    socket = new WebSocket(wsUrl);
 
-socket.onopen = () => {
-    document.querySelector('.status-indicator').classList.add('connected');
-    console.log("WebSocket connected");
-};
+    socket.onopen = () => {
+        document.querySelector('.status-indicator').classList.add('connected');
+        console.log("WebSocket connected for user:", userId);
+    };
 
-socket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log("WS Status Update:", data);
 
-    if (data.event === "reset") {
-        resetUI();
-    }
-    else if (data.type === "frame") {
-        // LIVE PROCESSING FEEDBACK
-        const cameraFeed = document.getElementById('camera-feed');
-        const cameraPlaceholder = document.getElementById('camera-placeholder');
-
-        if (cameraFeed && cameraPlaceholder) {
-            cameraFeed.src = `data:image/jpeg;base64,${data.data}`;
-            cameraFeed.style.display = 'block';
-            cameraPlaceholder.style.display = 'none';
+        if (data.event === "reset") {
+            resetUI();
         }
+        else if (data.type === "frame") {
+            // LIVE PROCESSING FEEDBACK
+            const cameraFeed = document.getElementById('camera-feed');
+            const cameraPlaceholder = document.getElementById('camera-placeholder');
 
-        // 'data.count' in a frame message is the LIVE ROI Occupancy (Sacks in ROI)
-        if (data.count !== undefined) {
-            updateROIStatus(data.count);
+            if (cameraFeed && cameraPlaceholder) {
+                cameraFeed.src = `data:image/jpeg;base64,${data.data}`;
+                cameraFeed.style.display = 'block';
+                cameraPlaceholder.style.display = 'none';
+            }
+
+            // 'data.count' in a frame message is the LIVE ROI Occupancy (Sacks in ROI)
+            if (data.count !== undefined) {
+                updateROIStatus(data.count);
+            }
         }
-    }
-    // 'data.count' in a global message is the cumulative session total
-    else if (data.count !== undefined) {
-        updateTotalCount(data.count);
-    }
-};
+        // 'data.count' in a global message is the cumulative session total
+        else if (data.count !== undefined) {
+            updateTotalCount(data.count);
+        }
+    };
 
-socket.onclose = () => {
-    document.querySelector('.status-indicator').classList.remove('connected');
-    console.log("WebSocket disconnected");
+    socket.onclose = () => {
+        document.querySelector('.status-indicator').classList.remove('connected');
+        console.log("WebSocket disconnected. Retrying...");
+        setTimeout(connectWebSocket, 3000);
+    };
 };
 
 // Update the "Total Bags" card (Session Cumulative)
@@ -392,7 +427,7 @@ function updateTotalCount(newCount) {
     }
 
     countElement.textContent = newCount;
-    localStorage.setItem('currentTotalBags', newCount);
+    localStorage.setItem(userId ? `currentTotalBags_${userId}` : 'currentTotalBags', newCount);
 }
 
 // Update the "Status In ROI" card (Live Occupancy)
@@ -443,7 +478,7 @@ function updateGlobalStats() {
     });
 
     const avgBags = totalUploads > 0 ? Math.round(totalBags / totalUploads) : 0;
-    const successRate = totalUploads > 0 ? Math.round((successCount / totalUploads) * 100) : 100;
+    const successRate = totalUploads > 0 ? Math.round((successCount / totalUploads) * 100) : 0;
 
     document.getElementById('metric-uploads').textContent = totalUploads;
     document.getElementById('metric-avg').textContent = avgBags;
@@ -455,7 +490,7 @@ const exportBtn = document.getElementById('export-btn');
 if (exportBtn) {
     exportBtn.addEventListener('click', () => {
         // Get data from localStorage
-        const storedData = localStorage.getItem('analyticsData');
+        const storedData = localStorage.getItem(getAnalyticsKey());
         if (!storedData) {
             alert("No data to export");
             return;
@@ -504,7 +539,7 @@ if (resetBtn) {
 
 function resetUI() {
     // Reset Total Count
-    updateCount(0);
+    updateTotalCount(0);
 
     // Reset Zone Stats (Modular)
     const insideCount = document.getElementById('inside-count');
@@ -536,29 +571,36 @@ function resetUI() {
     }
 
     // Clear LocalStorage
-    localStorage.removeItem('analyticsData');
-    localStorage.removeItem('recentUploads');
-    localStorage.removeItem('currentTotalBags'); // Also clear count persistence if we add it
+    // Clear LocalStorage for this user
+    localStorage.removeItem(getAnalyticsKey());
+    localStorage.removeItem(userId ? `recentUploads_${userId}` : 'recentUploads');
+    localStorage.removeItem(userId ? `currentTotalBags_${userId}` : 'currentTotalBags');
 }
 
 // Result Persistence Helpers
 function saveRecentUpload(item) {
-    let recent = JSON.parse(localStorage.getItem('recentUploads') || '[]');
+    const recentKey = userId ? `recentUploads_${userId}` : 'recentUploads';
+    const totalKey = userId ? `currentTotalBags_${userId}` : 'currentTotalBags';
+
+    let recent = JSON.parse(localStorage.getItem(recentKey) || '[]');
     recent.unshift(item);
     if (recent.length > 5) recent = recent.slice(0, 5); // Keep only last 5 for dashboard
-    localStorage.setItem('recentUploads', JSON.stringify(recent));
+    localStorage.setItem(recentKey, JSON.stringify(recent));
 
     // Also update current total bags persistence
-    const currentTotal = parseInt(localStorage.getItem('currentTotalBags') || '0');
-    localStorage.setItem('currentTotalBags', currentTotal + item.count);
+    const currentTotal = parseInt(localStorage.getItem(totalKey) || '0');
+    localStorage.setItem(totalKey, currentTotal + item.count);
 }
 
 function loadRecentUploads() {
-    const recent = JSON.parse(localStorage.getItem('recentUploads') || '[]');
-    const currentTotal = localStorage.getItem('currentTotalBags') || '0';
+    const recentKey = userId ? `recentUploads_${userId}` : 'recentUploads';
+    const totalKey = userId ? `currentTotalBags_${userId}` : 'currentTotalBags';
+
+    const recent = JSON.parse(localStorage.getItem(recentKey) || '[]');
+    const currentTotal = localStorage.getItem(totalKey) || '0';
 
     // Restore count
-    updateCount(parseInt(currentTotal));
+    updateTotalCount(parseInt(currentTotal));
 
     if (recent.length > 0) {
         const uploadList = document.getElementById('upload-list');

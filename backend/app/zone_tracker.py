@@ -397,8 +397,8 @@ class ModularZoneTracker:
                         ids_confirmed_inside.discard(tid)
                         del self.object_states[tid]
 
-            # v8.8: live_count now uses the immediate visual occupancy for the UI
-            live_count = current_occupancy
+            # v11.0: live_count now shows the running total for clearer user feedback
+            live_count = self.total_count
 
             cv2.putText(
                 annotated_frame,
