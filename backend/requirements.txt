@@ -6,9 +6,13 @@ ultralytics  # YOLOv8 for jute bag detection and tracking
 lap>=0.5.12  # Required by ultralytics for tracking
 requests
 supervision==0.23.0  # Helpful for vision tasks visualization
-flask
+flask[async]
 flask-cors
 flask-sock
+asgiref
+gunicorn
+gevent
+gevent-websocket
 google-generativeai  # Gemini Vision for AI audit in Qty Count Pro
 python-dotenv        # Loads GEMINI_API_KEY from .env file
 Pillow               # PIL image loading (already used, now explicit)

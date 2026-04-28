@@ -347,7 +347,7 @@ function DemoPreviewSection() {
             <div key={c} className="w-3 h-3 rounded-full" style={{ background: c }} />
           ))}
           <div className="ml-2 flex-1 bg-gray-100 dark:bg-white/5 rounded-lg px-3 py-1 text-xs text-gray-500 font-mono">
-            localhost:5173/dashboard
+            boxvision.thirdeyedata.ai/dashboard
           </div>
           <div className="live-badge text-[10px]">LIVE</div>
         </div>
