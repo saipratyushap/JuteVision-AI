@@ -1,3 +1,4 @@
+# DEACTIVATED: This module is currently not being used in the project.
 """
 Godown Counting/Decounting Tracker
 ===================================
@@ -42,7 +43,7 @@ class GodownTracker:
     inventory: int
     _live_frame_idx: int
 
-    def __init__(self, model_name="sacks_custom.pt", user_id=None):
+    def __init__(self, model_name="boxes_custom.pt", user_id=None):
         print(f"Initializing GodownTracker for user: {user_id or 'default'}...")
         self.user_id = user_id
 
@@ -56,9 +57,9 @@ class GodownTracker:
 
         try:
             self.model = YOLO(model_path)
-            print(f"GodownTracker: Sacks model loaded from {model_path}")
+            print(f"GodownTracker: Boxes model loaded from {model_path}")
         except Exception as e:
-            print(f"GodownTracker: Error loading sacks model: {e}")
+            print(f"GodownTracker: Error loading boxes model: {e}")
             self.model = None
 
         # Load standard YOLO model for PERSON detection
@@ -429,9 +430,9 @@ class GodownTracker:
                     cx, cy = float(box[0]), float(box[1])
                     w, h = float(box[2]), float(box[3])
 
-                    # Relaxed filters for godown (allow small far sacks & person+sack combos)
+                    # Relaxed filters for godown (allow small far boxes & person+box combos)
                     aspect_ratio = w / h if h > 0 else 1
-                    if aspect_ratio < 0.2 or aspect_ratio > 6.0:
+                    if aspect_ratio < 0.4 or aspect_ratio > 4.0:
                         continue
                     if w < width * 0.005 or h < height * 0.005:
                         continue
@@ -458,9 +459,9 @@ class GodownTracker:
                     if tid in self.person_tainted_ids:
                         continue
 
-                    sack_x1, sack_y1 = int(cx - w / 2), int(cy - h / 2)
-                    sack_x2, sack_y2 = int(cx + w / 2), int(cy + h / 2)
-                    sack_area = max(1, int(w * h))
+                    box_x1, box_y1 = int(cx - w / 2), int(cy - h / 2)
+                    box_x2, box_y2 = int(cx + w / 2), int(cy + h / 2)
+                    box_area = max(1, int(w * h))
 
                     # Update trajectory
                     if tid not in self.track_positions:
@@ -479,7 +480,7 @@ class GodownTracker:
                         self.save_inventory(self.inventory)
                         self.events.append(
                             {
-                                "msg": f"Sack {display_id} Entered (+1)",
+                                "msg": f"Box {display_id} Entered (+1)",
                                 "color": (0, 255, 0),
                                 "frame": frame_idx,
                             }
@@ -510,7 +511,7 @@ class GodownTracker:
                         self.save_inventory(self.inventory)
                         self.events.append(
                             {
-                                "msg": f"Sack {display_id} Left (-1)",
+                                "msg": f"Box {display_id} Left (-1)",
                                 "color": (0, 0, 255),
                                 "frame": frame_idx,
                             }
@@ -721,7 +722,7 @@ class GodownTracker:
                 w, h = float(box[2]), float(box[3])
 
                 aspect_ratio = w / h if h > 0 else 1
-                if aspect_ratio < 0.2 or aspect_ratio > 6.0: continue
+                if aspect_ratio < 0.4 or aspect_ratio > 4.0: continue
                 if w < width * 0.005 or h < height * 0.005: continue
                 if w > width * 0.85 or h > height * 0.85: continue
 
@@ -738,9 +739,9 @@ class GodownTracker:
                 if tid in self.person_tainted_ids:
                     continue
 
-                sack_x1, sack_y1 = int(cx - w / 2), int(cy - h / 2)
-                sack_x2, sack_y2 = int(cx + w / 2), int(cy + h / 2)
-                sack_area = max(1, int(w * h))
+                box_x1, box_y1 = int(cx - w / 2), int(cy - h / 2)
+                box_x2, box_y2 = int(cx + w / 2), int(cy + h / 2)
+                box_area = max(1, int(w * h))
                 is_person = False
                 for (pcx, pcy, ph) in person_centroids_frame:
                     dist = np.sqrt((cx - pcx)**2 + (cy - pcy)**2)
@@ -749,11 +750,11 @@ class GodownTracker:
                         break
                 if not is_person:
                     for (px1, py1, px2, py2) in person_boxes_frame:
-                        ix1, iy1 = max(sack_x1, px1), max(sack_y1, py1)
-                        ix2, iy2 = min(sack_x2, px2), min(sack_y2, py2)
+                        ix1, iy1 = max(box_x1, px1), max(box_y1, py1)
+                        ix2, iy2 = min(box_x2, px2), min(box_y2, py2)
                         if ix1 < ix2 and iy1 < iy2:
                             intersection = (ix2 - ix1) * (iy2 - iy1)
-                            if intersection / sack_area > 0.10:
+                            if intersection / box_area > 0.10:
                                 is_person = True
                                 break
                 if is_person:
@@ -774,7 +775,7 @@ class GodownTracker:
                     self.today_in += 1
                     self.inventory += 1
                     self.save_inventory(self.inventory)
-                    self.events.append({"msg": f"Sack {display_id} Entered (+1)", "color": (0, 255, 0), "frame": frame_idx})
+                    self.events.append({"msg": f"Box {display_id} Entered (+1)", "color": (0, 255, 0), "frame": frame_idx})
                     cv2.circle(annotated_frame, (int(cx), int(cy)), 15, (0, 255, 0), -1)
                     if on_update:
                         try:
@@ -786,7 +787,7 @@ class GodownTracker:
                     self.today_out += 1
                     self.inventory = max(0, self.inventory - 1)
                     self.save_inventory(self.inventory)
-                    self.events.append({"msg": f"Sack {display_id} Left (-1)", "color": (0, 0, 255), "frame": frame_idx})
+                    self.events.append({"msg": f"Box {display_id} Left (-1)", "color": (0, 0, 255), "frame": frame_idx})
                     cv2.circle(annotated_frame, (int(cx), int(cy)), 15, (0, 0, 255), -1)
                     if on_update:
                         try:

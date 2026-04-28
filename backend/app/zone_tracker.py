@@ -1,3 +1,4 @@
+# DEACTIVATED: This module is currently not being used in the project.
 import cv2
 import torch
 import numpy as np
@@ -6,7 +7,7 @@ from ultralytics import YOLO
 
 
 class ModularZoneTracker:
-    def __init__(self, model_name="sacks_custom.pt", target_class_id=None):
+    def __init__(self, model_name="boxes_custom.pt", target_class_id=None):
         print("Initializing ModularZoneTracker...")
 
         self.device = self._get_device()
@@ -211,8 +212,8 @@ class ModularZoneTracker:
                     aspect_ratio = w / h
                     cx, cy = float(box[0]), float(box[1])
                     
-                    # 1. Shape/AR (0.2 to 5.0) - v9.7 Perspective Buff (Relaxed)
-                    if aspect_ratio < 0.2 or aspect_ratio > 5.0:
+                    # 1. Shape/AR (0.5 to 3.0) - Boxes are more uniform rectangles
+                    if aspect_ratio < 0.5 or aspect_ratio > 3.0:
                         continue
                     
                     # 2. Hard Screen Margins (2%) - v8.5 Responsive
@@ -375,7 +376,7 @@ class ModularZoneTracker:
                                         state["confirmed"] = True # CRITICAL FIX: Mark internal object state as confirmed to stop re-registration
                                         state["last_event_frame"] = frame_idx
                                         self.events.append({
-                                            "msg": f"Sack {display_id} Entered (+1)",
+                                            "msg": f"Box {display_id} Entered (+1)",
                                             "color": (0, 255, 0),
                                             "frame": frame_idx
                                         })
@@ -416,7 +417,7 @@ class ModularZoneTracker:
                                 
                                 # v8.9 Exit Event (-1)
                                 self.events.append({
-                                    "msg": f"Sack {display_id} Left (-1)",
+                                    "msg": f"Box {display_id} Left (-1)",
                                     "color": (0, 0, 255),
                                     "frame": frame_idx
                                 })
@@ -456,7 +457,7 @@ class ModularZoneTracker:
                              self.display_id_states[display_id]["alert_state"] = "left"
                              self.display_id_states[display_id]["confirmed"] = False
                              self.events.append({
-                                "msg": f"Sack {display_id} Left (-1)",
+                                "msg": f"Box {display_id} Left (-1)",
                                 "color": (0, 0, 255),
                                 "frame": frame_idx
                             })
@@ -468,7 +469,7 @@ class ModularZoneTracker:
 
             cv2.putText(
                 annotated_frame,
-                f"Sacks in ROI: {live_count}",
+                f"Boxes in ROI: {live_count}",
                 (20, 50),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.8,

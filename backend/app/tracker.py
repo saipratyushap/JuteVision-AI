@@ -5,13 +5,13 @@ import numpy as np
 import os
 from ultralytics import YOLO
 try:
-    from app.utils import get_centroid, annotate_frame
+    from .utils import get_centroid, annotate_frame, detect_with_tiling_shared
 except (ImportError, ValueError):
-    from .utils import get_centroid, annotate_frame
+    from app.utils import get_centroid, annotate_frame, detect_with_tiling_shared # type: ignore
 
 class JuteBagTracker:
-    def __init__(self, model_name="sacks_custom.pt"):  # Custom sacks model
-        print("Initializing JuteBagTracker (Custom Sacks Model)...")
+    def __init__(self, model_name="boxes_custom.pt"):  # Custom boxes model
+        print("Initializing BoxTracker (Custom Boxes Model)...")
         self.device = self._get_device()
         print(f"Using device: {self.device}")
         
@@ -50,243 +50,7 @@ class JuteBagTracker:
             return "cpu"
 
     def detect_with_tiling(self, frame, strict=False):
-        """
-        Performs inference using tiling (SAHI-lite) to detect small objects.
-        Splits frame into overlapping tiles + full frame, then merges results with NMS.
-        """
-        if self.model is None:
-            return torch.empty((0, 4)), []
-
-        height, width = frame.shape[:2]
-        
-        # Define Overlapping Tiles (ensure objects on seams are detected)
-        # Using a dense 3x3 grid + full frame for maximum coverage
-        
-        tiles = []
-        
-        # 1. Full Frame
-        tiles.append((0, 0, width, height))
-        
-        # 2. 2x2 Grid with Overlap
-        x_step = int(width * 0.6)
-        y_step = int(height * 0.6)
-        
-        # Top-Left, Top-Right, Bottom-Left, Bottom-Right
-        tiles.append((0, 0, x_step, y_step))
-        tiles.append((width - x_step, 0, width, y_step))
-        tiles.append((0, height - y_step, x_step, height))
-        tiles.append((width - x_step, height - y_step, width, height))
-        
-        # 3. Center Cross (for seams)
-        center_w = int(width * 0.6)
-        center_h = int(height * 0.6)
-        cx_start = int((width - center_w) / 2)
-        cy_start = int((height - center_h) / 2)
-        tiles.append((cx_start, cy_start, cx_start + center_w, cy_start + center_h))
-        
-        # 4. Vertical Stripes (Left, Center, Right) for tall piles
-        v_w = int(width * 0.4)
-        tiles.append((0, 0, v_w, height))
-        tiles.append((int(width*0.3), 0, int(width*0.7), height))
-        tiles.append((width - v_w, 0, width, height))
-        
-        # 5. Dense 3x3 Grid (for maximum coverage on crowded piles)
-        for r in range(3):
-            for c in range(3):
-                t_x1 = int(c * width / 3)
-                t_y1 = int(r * height / 3)
-                t_x2 = int((c + 1) * width / 3)
-                t_y2 = int((r + 1) * height / 3)
-                # Add padding (20% overlap)
-                pad_x = int((t_x2 - t_x1) * 0.2)
-                pad_y = int((t_y2 - t_y1) * 0.2)
-                tiles.append((max(0, t_x1 - pad_x), max(0, t_y1 - pad_y),
-                              min(width, t_x2 + pad_x), min(height, t_y2 + pad_y)))
-        
-        all_boxes = []
-        all_confs = []
-        all_cls = []
-
-        for tx1, ty1, tx2, ty2 in tiles:
-            # Crop tile
-            tile_img = frame[ty1:ty2, tx1:tx2]
-            if tile_img.size == 0: continue
-            
-            # --- PREPROCESSING (Enhance Contrast) ---
-            # Jute bags are often white-on-white. CLAHE helps separate them.
-            try:
-                lab = cv2.cvtColor(tile_img, cv2.COLOR_BGR2LAB)
-                l, a, b = cv2.split(lab)
-                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-                cl = clahe.apply(l)
-                limg = cv2.merge((cl, a, b))
-                tile_img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-            except Exception:
-                pass # Fallback to original if enhancement fails
-            
-            # Run Inference
-            # v13.6 Improved Accuracy: Static Mode (strict=False) raised to 0.35 to prevent overcounting from false positives like text watermarks and background noise.
-            conf_val = 0.45 if strict else 0.35
-            # v13.7 Performance Fix: Disabling 'augment=True' for inference. 
-            # Augmentation is too slow for video/live processing and should only be used for static images if necessary.
-            results = self.model.predict(tile_img, conf=conf_val, iou=0.60, augment=False, classes=[0], verbose=False)
-            
-            if results and len(results[0].boxes) > 0:
-                boxes = results[0].boxes.xyxy.cpu().numpy() # Use xyxy for easy offsetting
-                confs = results[0].boxes.conf.cpu().numpy()
-                clss = results[0].boxes.cls.cpu().numpy()
-                
-                # Offset coordinates back to full frame
-                boxes[:, [0, 2]] += tx1
-                boxes[:, [1, 3]] += ty1
-                
-                all_boxes.append(boxes)
-                all_confs.append(confs)
-                all_cls.append(clss)
-        
-        if not all_boxes:
-            return torch.empty((0, 4)), []
-            
-        # Concatenate all detections
-        all_boxes = torch.tensor(np.concatenate(all_boxes))
-        all_confs = torch.tensor(np.concatenate(all_confs))
-        all_cls = torch.tensor(np.concatenate(all_cls))
-        
-        # Apply NMS (Non-Maximum Suppression)
-        # strict=True: 0.30 (Aggressive anti-ghosting)
-        # strict=False: 0.23 (Middle ground between 0.20 and 0.30 to balance overlapping vs ghosting)
-        nms_thresh = 0.30 if strict else 0.23
-        keep_indices = torchvision.ops.nms(all_boxes, all_confs, nms_thresh)
-        
-        final_boxes = all_boxes[keep_indices]
-        final_confs = all_confs[keep_indices]
-        
-        # --- PRE-FILTER GIANT BOXES ---
-        # Before deduplication, strip out obviously massive boxes that would swallow good small bags via is_contained
-        valid_pre = []
-        frame_area = width * height
-        size_limit = 0.25 if strict else 0.55
-        for i, box in enumerate(final_boxes):
-            w = float(box[2] - box[0])
-            h = float(box[3] - box[1])
-            if w * h > frame_area * (0.35 if strict else 0.45): continue
-            if w > width * size_limit or h > height * size_limit: continue
-            valid_pre.append(i)
-            
-        final_boxes = final_boxes[valid_pre] if valid_pre else torch.empty((0, 4), device=self.device if hasattr(self, 'device') else 'cpu')
-        final_confs = final_confs[valid_pre] if valid_pre else torch.empty((0), device=self.device if hasattr(self, 'device') else 'cpu')
-        
-        # --- PROXIMITY-BASED CENTROID DEDUP (v9.0) ---
-        # Even with NMS, some boxes vary slightly in coordinates. 
-        # We merge boxes whose centers are within a dynamic pixel range.
-        deduped_boxes = []
-        deduped_confs = []
-        
-        if len(final_boxes) > 0:
-            boxes_np = final_boxes.cpu().numpy()
-            confs_np = final_confs.cpu().numpy()
-            
-            used_mask = np.zeros(len(boxes_np), dtype=bool)
-            
-            for i in range(len(boxes_np)):
-                if used_mask[i]: continue
-                
-                b1 = boxes_np[i]
-                c1_x, c1_y = (b1[0] + b1[2]) / 2, (b1[1] + b1[3]) / 2
-                
-                # Compare against all subsequent boxes
-                for j in range(i + 1, len(boxes_np)):
-                    if used_mask[j]: continue
-                    
-                    b2 = boxes_np[j]
-                    c2_x, c2_y = (b2[0] + b2[2]) / 2, (b2[1] + b2[3]) / 2
-                    
-                    # Euclidean distance between centroids
-                    dist = np.sqrt((c1_x - c2_x)**2 + (c1_y - c2_y)**2)
-                    
-                    # Deduplication threshold relative to bag size for close-ups
-                    # We use absolute pixels or a percentage of bag's width (whichever is larger)
-                    w1 = b1[2] - b1[0]
-                    h1 = b1[3] - b1[1]
-                    dynamic_thresh = max(30, max(w1, h1) * 0.35)
-                    dist_thresh = 15 if strict else dynamic_thresh
-                    
-                    # Check if b2 is entirely inside b1 (or vice versa with a small margin based on image size)
-                    m_x = max(10, w1 * 0.15)
-                    m_y = max(10, h1 * 0.15)
-                    is_contained = (b2[0] >= b1[0] - m_x) and (b2[1] >= b1[1] - m_y) and (b2[2] <= b1[2] + m_x) and (b2[3] <= b1[3] + m_y)
-                    
-                    if dist < dist_thresh or is_contained:
-                        used_mask[j] = True # Suppress the lower-confidence duplicate
-
-                
-                deduped_boxes.append(torch.tensor(b1))
-                deduped_confs.append(torch.tensor(confs_np[i]))
-        
-        if not deduped_boxes:
-             return torch.empty((0, 4)), []
-             
-        final_boxes = torch.stack(deduped_boxes)
-        
-        # --- GEOMETRIC & POSITION FILTERING (Remove Walls/Noise) ---
-        valid_boxes = []
-        frame_area = width * height
-        
-        for box in final_boxes:
-            x1, y1, x2, y2 = map(int, box)
-            w = x2 - x1
-            h = y2 - y1
-            area = w * h
-            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-            
-            if w <= 0 or h <= 0: continue
-            
-            aspect_ratio = w / h
-            
-            # Criteria (SMART):
-            # 1. Size: Reject huge (wall) or tiny (speck) objects.
-            # Relaxed for static piles: bags near camera can be large
-            is_large = area > frame_area * (0.35 if strict else 0.45) 
-            is_tiny = area < frame_area * 0.0005
-            
-            # 2. Shape: Relaxed for angled/stacked bags (0.4 to 4.0) - v9.0
-            bad_ar = (aspect_ratio < 0.4) or (aspect_ratio > 4.0)
-            
-            # 3. Position: Top 15% Ceiling rejection (prevents boxing the sky/background walls)
-            is_high = cy < (height * 0.15)
-            
-            # --- v8.1 BALANCED INDUSTRIAL FILTERS ---
-            
-            # 4. EDGE EXCLUSION MARGINS (v8.4 Balanced)
-            # - Strict: 10% (Truck Frame Rejection)
-            # - Static: 1% (Allow bags almost to the very edge)
-            margin_pct = 0.10 if strict else 0.01
-            margin_x = width * margin_pct
-            margin_y = height * margin_pct
-            is_at_edge = (cx < margin_x) or (cx > width - margin_x) or (cy < margin_y)
-            
-            # 5. HARD GROUND CUT (v8.1 Balanced)
-            # - Strict: 80% (Zero floor noise)
-            # - Static: Relaxed, use generic ground filter if at bottom
-            is_ground = (y2 > height * 0.80) if strict else (y2 > height * 0.90 and aspect_ratio > 2.5)
-            
-            # 6. MACRO-NOISE REJECTION: No sack is > massive screen size limit in Static
-            # Foreground warehouse bags can be massive (up to 55%), but not > 90% of screen.
-            size_limit = 0.25 if strict else 0.55
-            is_too_big = (w > width * size_limit) or (h > height * size_limit)
-            
-            # 7. TRUCK WALL / PILLAR (Tall & touching side)
-            # v8.4: Disable wall filter for static mode to allow edge detections
-            touches_side = (x1 < 10) or (x2 > width - 10)
-            is_wall = strict and touches_side and (h > height * 0.25)
-
-            if not (is_large or is_tiny or bad_ar or is_high or is_at_edge or is_ground or is_too_big or is_wall):
-                valid_boxes.append(box)
-                
-        if len(valid_boxes) > 0:
-            return torch.stack(valid_boxes), list(range(len(valid_boxes)))
-        else:
-            return torch.empty((0, 4)), []
+        return detect_with_tiling_shared(self.model, frame)
 
     def process_live_frame(self, frame):
         """
@@ -359,7 +123,7 @@ class JuteBagTracker:
 
     def process_video(self, video_path, output_path, mode="static", on_update=None):
         """
-        Processes a video file to count jute bags.
+        Processes a video file to count boxes.
         mode: "static" (whole frame) or "scanning" (center zone)
         """
         import numpy as np # Ensure numpy is available
@@ -533,66 +297,84 @@ class JuteBagTracker:
         print(f"Processed video saved to {output_path} | Final Count: {current_count}")
         return {"count": current_count, "status": "completed"}
 
-    def process_image(self, image_path, output_path, on_update=None):
+    def process_image(self, image_path, output_path, on_update=None, mode="static"):
         """
         Processes a single image file for bag counting.
         """
         import cv2
         import numpy as np
+        from PIL import Image, ImageOps
 
-        print(f"Starting image processing: {image_path}")
+        print(f"Starting image processing: {image_path} (Mode: {mode})")
         
-        # Load Image
-        frame = cv2.imread(image_path)
+        # v14.45: Fused Drawing (Absolute Alignment)
+        try:
+            pil_img = Image.open(image_path)
+            pil_img = ImageOps.exif_transpose(pil_img)
+            frame = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+        except Exception as e:
+            print(f"PIL loading failed: {e}. Falling back to OpenCV.")
+            frame = cv2.imread(image_path)
+
         if frame is None:
-            print(f"Error: Could not open image {image_path}")
-            return {"count": 0, "status": "failed", "error": f"Could not open image {image_path}"}
+            return {"count": 0, "status": "failed", "error": f"Could not decode image {image_path}"}
             
-        if self.model is None:
-             print("Error: Model not loaded")
-             return {"count": 0, "status": "failed", "error": "Model not loaded"}
-             
-        height, width = frame.shape[:2]
-        annotated_frame = frame.copy()
+        orig_h, orig_w = frame.shape[:2]
         
-        # Run Tiled Detection (Best for static piles)
-        # v8.1: Using balanced (strict=False) for static image piles
-        final_boxes, _ = self.detect_with_tiling(frame, strict=False)
+        # 1. Scale Image for AI (Max Dim 1280)
+        # This keeps the aspect ratio natural for the model
+        scale_ai = 1280 / max(orig_w, orig_h)
+        ai_w, ai_h = int(orig_w * scale_ai), int(orig_h * scale_ai)
+        ai_frame = cv2.resize(frame, (ai_w, ai_h), interpolation=cv2.INTER_AREA)
+        
+        # 2. Detect on the Resized Image (No padding yet)
+        final_boxes, _ = self.detect_with_tiling(ai_frame, strict=False)
+        
+        # 3. Draw directly on the AI Frame (Absolute Sync)
+        if len(final_boxes) > 0:
+            for box in final_boxes:
+                x1, y1, x2, y2 = map(int, box[:4])
+                cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                cv2.rectangle(ai_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.circle(ai_frame, (cx, cy), 6, (0, 255, 0), -1)
         
         count = len(final_boxes)
+        cv2.putText(ai_frame, f"STATIC IMAGE COUNT: {count}", (30, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 2)
         
-        # Visualize
-        cv2.putText(annotated_frame, f"STATIC IMAGE COUNT: {count}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 3)
+        # 4. Final Letterbox for UI (1280x720)
+        # We place the ALREADY DRAWN image onto the canvas
+        canvas_w, canvas_h = 1280, 720
+        canvas = np.zeros((canvas_h, canvas_w, 3), dtype=np.uint8)
         
-        for box in final_boxes:
-            x1, y1, x2, y2 = map(int, box)
-            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-            
-            # Draw Box & Dot
-            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.circle(annotated_frame, (cx, cy), 8, (0, 255, 0), -1)
-            
-        # Save Output
-        cv2.imwrite(output_path, annotated_frame)
+        scale_ui = min(canvas_w / ai_w, canvas_h / ai_h)
+        new_w, new_h = int(ai_w * scale_ui), int(ai_h * scale_ui)
+        resized_annotated = cv2.resize(ai_frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
         
-        # Broadcast Frame (Live Feedback for Image)
+        offset_x = (canvas_w - new_w) // 2
+        offset_y = (canvas_h - new_h) // 2
+        canvas[offset_y:offset_y+new_h, offset_x:offset_x+new_w] = resized_annotated
+        
+        # Calibration Mark (Top Left of Canvas)
+        cv2.rectangle(canvas, (5, 5), (45, 45), (0, 0, 255), 2)
+        
+        # Save and Broadcast
+        cv2.imwrite(output_path, canvas)
+        
         if on_update:
             try:
                 import base64
-                _, buffer = cv2.imencode('.jpg', annotated_frame)
+                _, buffer = cv2.imencode('.jpg', canvas)
                 jpg_as_text = base64.b64encode(buffer).decode('utf-8')
                 on_update({"type": "frame", "data": jpg_as_text, "count": count})
             except Exception as e:
                 print(f"Frame broadcast failed: {e}")
 
-        # Update Global Count
-        # self.total_count += count # v13.5 Disabled for session isolation
-        
         print(f"Processed image saved to {output_path} | Final Count: {count}")
         return {
             "count": count, 
             "status": "completed", 
-            "video_url": f"/download/{os.path.basename(output_path)}" # Reuse video_url field for consistency
+            "video_url": f"/download/{os.path.basename(output_path)}",
+            "is_image": True
         }
     # Generator for future streaming support
     # def process_video_generator(self, video_path, line_y=500):

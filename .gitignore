@@ -22,6 +22,4 @@ backend/data/*.json
 
 # Shared Media
 *.mp4
-!frontend/assets/samples/*.mp4
-
-# Note: AI Models (.pt), Training Data, and Scripts are tracked.
+# Samples are now handled within frontend-react or backend data

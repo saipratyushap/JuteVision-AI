@@ -24,18 +24,20 @@ An AI-powered system for automated counting of jute bags using YOLOv8 object det
 - **YOLOv8 (ultralytics)** - Object detection and tracking
 - **PyTorch** - Deep learning framework
 - **OpenCV** - Video processing
-- **Threading** - Asynchronous AI processing
+- **Threading** - Asynchronous AI processing (ThreadPoolExecutor)
 
 ### Frontend
-- **Vite** - Next-generation build tool
-- **Vanilla JavaScript** - Lightweight and fast
-- **Chart.js** - Interactive data visualization for analytics dashboard
-- **CSS3** - Custom design system with modern components
+- **React 18** - Modern UI library
+- **Vite** - High-performance build tool
+- **Tailwind CSS** - Utility-first styling
+- **Framer Motion** - Smooth UI animations
+- **Lucide React** - Premium icon set
+- **Zustand** - Global state management
 
 ## 📋 Prerequisites
 
 - Python 3.8+
-- Node.js 16+
+- Node.js 18+
 - npm or yarn
 
 ## 🚀 Installation
@@ -46,20 +48,10 @@ git clone https://github.com/saipratyushap/CCTV-VisionCount-AI.git
 cd CCTV-VisionCount-AI
 ```
 
-### 2. Download YOLOv8 Model
-Download the YOLOv8 medium model and place it in `backend/models/`:
-```bash
-# Visit https://github.com/ultralytics/assets/releases
-# Download yolov8m.pt
-# Move it to backend/models/yolov8m.pt
-```
-
-Or use Python:
-```bash
-cd backend
-python -c "from ultralytics import YOLO; YOLO('yolov8m.pt')"
-mv yolov8m.pt models/
-```
+### 2. Download YOLOv8 Models
+Ensure the following models are in `backend/models/`:
+- `boxes_custom.pt` (Custom fine-tuned sack detector)
+- `yolov8n.pt` (Base model for person detection)
 
 ### 3. Backend Setup
 ```bash
@@ -69,7 +61,7 @@ pip install -r requirements.txt
 
 ### 4. Frontend Setup
 ```bash
-cd frontend
+cd frontend-react
 npm install
 ```
 
@@ -78,14 +70,14 @@ npm install
 ### Start Backend Server
 ```bash
 cd backend
-.venv/bin/python3 -m app.flask_main
+python3 -m app.flask_main
 ```
 
 The backend will be available at `http://localhost:8000`
 
 ### Start Frontend Server
 ```bash
-cd frontend
+cd frontend-react
 npm run dev
 ```
 
@@ -97,26 +89,22 @@ The frontend will be available at `http://localhost:5173`
 CCTV_VisionCount_AI/
 ├── backend/
 │   ├── app/
-│   │   ├── flask_main.py       # Primary Flask backend server
-│   │   ├── main.py             # (Legacy) FastAPI backend server
+│   │   ├── flask_main.py       # Primary Flask asynchronous backend server
 │   │   ├── tracker.py          # YOLOv8 tracker with high-density logic
 │   │   ├── zone_tracker.py     # ROI tracking for Conveyor and custom Zone modes
-│   ├── data/                   # NEW: Consolidated storage for all dynamic data
-│   │   ├── detections/         # Processed media output (Annotated videos/images)
-│   │   ├── uploads/            # Raw temporary uploads (Videos/Images)
-│   │   ├── tasks.json          # Persistent record of processing history
-│   │   └── godown_inventory.json # Persistent warehouse stock monitoring
+│   │   ├── godown_tracker.py   # Directional entry/exit counting
+│   ├── data/                   # Dynamic storage for processed media and logs
 │   ├── models/
-│   │   ├── yolov8n.pt          # Base YOLOv8 model
-│   │   └── sacks_custom.pt     # Fine-tuned weights for jute bags
+│   │   ├── yolov8n.pt          # Base YOLOv8 model for person tracking
+│   │   └── boxes_custom.pt     # Fine-tuned weights for sack detection
 │   ├── requirements.txt
-├── frontend/
-│   ├── index.html              # Main Monitoring Dashboard
-│   ├── analytics.html          # Glassmorphism Data & Trends Dashboard
-│   ├── script.js               # Application logic & ZIP bundling
-│   ├── style.css               # Premium design system
-│   └── assets/
-│       └── samples/            # Pre-loaded sample bundles (.mp4, .jpg)
+├── frontend-react/             # Modern React dashboard
+│   ├── src/
+│   │   ├── components/         # Modular UI components
+│   │   ├── pages/              # Main view containers
+│   │   ├── store/              # Zustand state management
+│   ├── index.html
+│   └── package.json
 └── README.md
 ```
 

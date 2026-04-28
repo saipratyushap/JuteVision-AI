@@ -1,0 +1,15 @@
+{
+  "source_directories": [
+    "backend/app"
+  ],
+  "search_path": [
+    "backend/app",
+    "backend"
+  ],
+  "exclude": [
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/__pycache__/**",
+    "**/dist/**"
+  ]
+}

@@ -3,12 +3,7 @@
   "exclude": ["**/node_modules", "**/__pycache__"],
   "venvPath": "backend",
   "venv": ".venv",
-  "extraPaths": [
-    ".",
-    "backend",
-    "backend/app"
-  ],
-  "pythonVersion": "3.10",
+  "pythonVersion": "3.14",
   "typeCheckingMode": "basic",
   "reportMissingImports": true,
   "reportMissingTypeStubs": false

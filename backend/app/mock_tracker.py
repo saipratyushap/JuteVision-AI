@@ -1,3 +1,4 @@
+# DEACTIVATED: This module is currently not being used in the project.
 import cv2
 import time
 import random

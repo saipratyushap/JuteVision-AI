@@ -9,3 +9,7 @@ supervision==0.23.0  # Helpful for vision tasks visualization
 flask
 flask-cors
 flask-sock
+google-generativeai  # Gemini Vision for AI audit in Qty Count Pro
+python-dotenv        # Loads GEMINI_API_KEY from .env file
+Pillow               # PIL image loading (already used, now explicit)
+
